@@ -53,7 +53,7 @@ class BoostUseCaseTest {
         assertTrue("am force-stop com.example.game" in fake.calls)
         assertTrue(fake.calls.none { "yandexnavi" in it })
         assertEquals(listOf("com.example.game" to 0), fake.deleteCacheCalls)
-        assertEquals(BoostReport(fullMode = true, stopped = 1, failed = emptyList(), freedRamKb = 2000, freedCacheBytes = 400), report)
+        assertEquals(BoostReport(fullMode = true, stopped = 1, failed = emptyList(), freedRamKb = 2000, freedCacheBytes = 400, protectionUnavailable = false), report)
     }
 
     @Test
@@ -87,6 +87,28 @@ class BoostUseCaseTest {
         useCase(fake, apps).run()
 
         assertTrue(fake.calls.none { it.startsWith("pm trim-caches") })
+    }
+
+    @Test
+    fun busyProbeFailed_noForceStop_cacheStillCleared() = runTest {
+        val fake = FakePrivileged()
+        val uc = BoostUseCase(
+            privileged = fake,
+            loadApps = { listOf(app("com.example.navitel"), app("com.example.game")) },
+            buildContext = { ctx.copy(busyKnown = false) },
+            readFreeRamKb = { 0 },
+            totalCacheBytes = { 0 },
+            killBackground = {},
+            cacheCleaner = CacheCleaner(fake),
+            currentUser = { 0 },
+            delayMs = {},
+        )
+        val report = uc.run()
+
+        assertTrue(fake.calls.none { it.startsWith("am force-stop") })
+        assertEquals(2, fake.deleteCacheCalls.size)
+        assertEquals(0, report.stopped)
+        assertTrue(report.protectionUnavailable)
     }
 
     @Test

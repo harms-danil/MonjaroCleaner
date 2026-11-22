@@ -63,17 +63,31 @@ class AppsRepository(private val context: Context, private val privileged: Privi
         }
     }
 
-    /** Apps that must not be stopped right now: foreground services, playing media, resumed on any display. */
-    suspend fun busyPackages(): Set<String> {
-        if (!privileged.isAvailable) return emptySet()
-        val services = privileged.exec("dumpsys activity services")
+    data class BusyProbe(val packages: Set<String>, val known: Boolean)
+
+    /**
+     * Apps that must not be stopped right now: foreground services, playing media, resumed on any display.
+     * Output is filtered on the shell side to stay far below the binder limit. If any probe fails or
+     * doesn't look like real dumpsys output, [BusyProbe.known] is false and nothing gets force-stopped.
+     */
+    suspend fun busyPackages(): BusyProbe {
+        if (!privileged.isAvailable) return BusyProbe(emptySet(), known = false)
+        val services = privileged.exec(
+            "dumpsys activity services | grep -E '^[[:space:]]*(\\* ServiceRecord|packageName=|isForeground=)'",
+        )
         val media = privileged.exec("dumpsys media_session")
-        val activities = privileged.exec("dumpsys activity activities")
-        return buildSet {
-            if (services.ok) addAll(DumpsysStateParsers.foregroundServicePackages(services.out))
-            if (media.ok) addAll(DumpsysStateParsers.activeMediaSessionPackages(media.out))
-            if (activities.ok) addAll(DumpsysStateParsers.resumedPackages(activities.out))
+        val activities = privileged.exec(
+            "dumpsys activity activities | grep -E 'ACTIVITY MANAGER ACTIVITIES|ResumedActivity:'",
+        )
+        val known = services.ok && DumpsysStateParsers.looksLikeServices(services.out) &&
+            media.ok && DumpsysStateParsers.looksLikeMediaSessions(media.out) &&
+            activities.ok && DumpsysStateParsers.looksLikeActivities(activities.out)
+        val packages = buildSet {
+            addAll(DumpsysStateParsers.foregroundServicePackages(services.out))
+            addAll(DumpsysStateParsers.activeMediaSessionPackages(media.out))
+            addAll(DumpsysStateParsers.resumedPackages(activities.out))
         }
+        return BusyProbe(packages, known)
     }
 
     suspend fun currentUser(): Int {

@@ -1,10 +1,13 @@
 package app.mcleaner.privileged
 
 import android.content.Context
+import android.os.Binder
 import android.os.IBinder
+import android.os.Parcel
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import androidx.annotation.Keep
 import app.mcleaner.IShellService
-import java.util.concurrent.TimeUnit
 import kotlin.system.exitProcess
 
 /**
@@ -21,19 +24,16 @@ class ShellUserService() : IShellService.Stub() {
     }
 
     override fun exec(command: String): String = try {
-        val process = ProcessBuilder("sh", "-c", command).redirectErrorStream(true).start()
-        val out = process.inputStream.bufferedReader().readText()
-        val finished = process.waitFor(60, TimeUnit.SECONDS)
-        if (!finished) {
-            process.destroyForcibly()
-            "124\n$out"
-        } else {
-            "${process.exitValue()}\n$out"
-        }
+        val (code, out) = ShellRunner.run(command, TIMEOUT_MS, MAX_OUTPUT_CHARS)
+        "$code\n$out"
     } catch (t: Throwable) {
         "-1\n${t.javaClass.simpleName}: ${t.message}"
     }
 
+    /**
+     * PMS may "silently ignore" callers without INTERNAL_DELETE_CACHE_FILES (no exception, no callback),
+     * so success is only what the observer reports within [OBSERVER_TIMEOUT_MS].
+     */
     override fun deleteCache(packageName: String, userId: Int): Boolean = try {
         val binder = Class.forName("android.os.ServiceManager")
             .getMethod("getService", String::class.java)
@@ -41,12 +41,47 @@ class ShellUserService() : IShellService.Stub() {
         val pm = Class.forName("android.content.pm.IPackageManager\$Stub")
             .getMethod("asInterface", IBinder::class.java)
             .invoke(null, binder)!!
-        val observer = Class.forName("android.content.pm.IPackageDataObserver")
+        val observerClass = Class.forName("android.content.pm.IPackageDataObserver")
+        val result = ObserverBinder()
+        val observer = Class.forName("android.content.pm.IPackageDataObserver\$Stub")
+            .getMethod("asInterface", IBinder::class.java)
+            .invoke(null, result)
         pm.javaClass
-            .getMethod("deleteApplicationCacheFilesAsUser", String::class.java, Int::class.javaPrimitiveType, observer)
-            .invoke(pm, packageName, userId, null)
-        true
+            .getMethod("deleteApplicationCacheFilesAsUser", String::class.java, Int::class.javaPrimitiveType, observerClass)
+            .invoke(pm, packageName, userId, observer)
+        result.await(OBSERVER_TIMEOUT_MS) == true
     } catch (t: Throwable) {
         false
+    }
+
+    /** Hand-rolled IPackageDataObserver stub: `oneway void onRemoveCompleted(String packageName, boolean succeeded)`. */
+    private class ObserverBinder : Binder() {
+        private val latch = CountDownLatch(1)
+
+        @Volatile
+        private var succeeded: Boolean? = null
+
+        override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
+            if (code == FIRST_CALL_TRANSACTION) {
+                data.enforceInterface(DESCRIPTOR)
+                data.readString()
+                succeeded = data.readInt() != 0
+                latch.countDown()
+                return true
+            }
+            return super.onTransact(code, data, reply, flags)
+        }
+
+        fun await(timeoutMs: Long): Boolean? = if (latch.await(timeoutMs, TimeUnit.MILLISECONDS)) succeeded else null
+
+        private companion object {
+            const val DESCRIPTOR = "android.content.pm.IPackageDataObserver"
+        }
+    }
+
+    private companion object {
+        const val TIMEOUT_MS = 60_000L
+        const val MAX_OUTPUT_CHARS = 200_000
+        const val OBSERVER_TIMEOUT_MS = 3_000L
     }
 }

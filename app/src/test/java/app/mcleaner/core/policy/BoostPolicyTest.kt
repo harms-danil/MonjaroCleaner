@@ -61,6 +61,12 @@ class BoostPolicyTest {
     }
 
     @Test
+    fun busyProbeFailed_nothingKilled() {
+        val apps = listOf(app("com.example.navitel"), app("com.example.game"))
+        assertTrue(BoostPolicy.killCandidates(apps, ctx().copy(busyKnown = false)).isEmpty())
+    }
+
+    @Test
     fun selfShizukuLauncherIme_notKilled() {
         val apps = listOf(
             app("app.mcleaner"), app(BoostPolicy.SHIZUKU_PACKAGE), app("com.ecarx.launcher2"), app("com.example.ime"),

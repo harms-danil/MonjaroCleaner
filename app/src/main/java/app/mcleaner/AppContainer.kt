@@ -45,6 +45,7 @@ class AppContainer(context: Context) {
 
     suspend fun boostContext(): BoostContext {
         val s = settings.current()
+        val busy = apps.busyPackages()
         return BoostContext(
             whitelist = s.whitelist,
             stopGoogle = s.stopGoogle,
@@ -52,7 +53,8 @@ class AppContainer(context: Context) {
             launcherPackage = apps.launcherPackage(),
             imePackage = apps.imePackage(),
             selfPackage = appContext.packageName,
-            busyPackages = apps.busyPackages(),
+            busyPackages = busy.packages,
+            busyKnown = busy.known,
         )
     }
 }

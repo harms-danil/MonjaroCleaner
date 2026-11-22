@@ -161,6 +161,12 @@ fun OverviewScreen() {
                     if (r.fullMode) Text("Очищено ${Formatters.bytes(r.freedCacheBytes)} кэша")
                     Text("Остановлено приложений: ${r.stopped}")
                     if (r.failed.isNotEmpty()) Text("Не удалось остановить: ${r.failed.size}", color = Palette.Warn)
+                    if (r.protectionUnavailable) {
+                        Text(
+                            "Не удалось проверить, какие приложения сейчас играют или ведут маршрут, поэтому приложения не останавливались — только очищен кэш.",
+                            color = Palette.Warn,
+                        )
+                    }
                     if (!r.fullMode) {
                         Text("Для полного эффекта включите Shizuku в настройках.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }

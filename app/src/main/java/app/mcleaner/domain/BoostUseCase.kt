@@ -11,6 +11,7 @@ data class BoostReport(
     val failed: List<String>,
     val freedRamKb: Long,
     val freedCacheBytes: Long,
+    val protectionUnavailable: Boolean = false,
 )
 
 class BoostUseCase(
@@ -53,6 +54,7 @@ class BoostUseCase(
             failed = failed,
             freedRamKb = (readFreeRamKb() - ramBefore).coerceAtLeast(0),
             freedCacheBytes = (cacheBefore - totalCacheBytes()).coerceAtLeast(0),
+            protectionUnavailable = full && !ctx.busyKnown,
         )
     }
 

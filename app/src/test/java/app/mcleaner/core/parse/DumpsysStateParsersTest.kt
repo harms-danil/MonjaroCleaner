@@ -36,6 +36,34 @@ class DumpsysStateParsersTest {
     }
 
     @Test
+    fun probeValidity() {
+        assertEquals(true, DumpsysStateParsers.looksLikeServices(Fixtures.read("dumpsys_services_a11.txt")))
+        assertEquals(false, DumpsysStateParsers.looksLikeServices("Can't find service: activity"))
+        assertEquals(false, DumpsysStateParsers.looksLikeServices(""))
+        assertEquals(true, DumpsysStateParsers.looksLikeMediaSessions(Fixtures.read("dumpsys_media_session_a11.txt")))
+        assertEquals(true, DumpsysStateParsers.looksLikeMediaSessions("Sessions Stack - have 0 sessions:\n"))
+        assertEquals(false, DumpsysStateParsers.looksLikeMediaSessions("Permission Denial"))
+        assertEquals(true, DumpsysStateParsers.looksLikeActivities(Fixtures.read("dumpsys_activities_a11.txt")))
+        assertEquals(false, DumpsysStateParsers.looksLikeActivities(""))
+    }
+
+    @Test
+    fun bufferingAndConnecting_countAsPlaying() {
+        val text = """
+            package=ru.radio
+              active=true
+              state=PlaybackState {state=6, position=0}
+            package=ru.stream
+              active=true
+              state=PlaybackState {state=8, position=0}
+            package=ru.stopped
+              active=true
+              state=PlaybackState {state=1, position=0}
+        """.trimIndent()
+        assertEquals(setOf("ru.radio", "ru.stream"), DumpsysStateParsers.activeMediaSessionPackages(text))
+    }
+
+    @Test
     fun emptyInputs_empty() {
         assertEquals(emptySet<String>(), DumpsysStateParsers.resumedPackages(""))
         assertEquals(emptySet<String>(), DumpsysStateParsers.foregroundServicePackages(""))

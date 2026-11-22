@@ -10,6 +10,8 @@ data class BoostContext(
     val imePackage: String?,
     val selfPackage: String,
     val busyPackages: Set<String>,
+    /** False when the busy probe failed: then nothing may be force-stopped (fail closed). */
+    val busyKnown: Boolean = true,
 )
 
 object BoostPolicy {
@@ -21,7 +23,7 @@ object BoostPolicy {
 
     /** Full mode: running apps that may be force-stopped. */
     fun killCandidates(apps: List<AppInfo>, ctx: BoostContext): List<String> =
-        apps.filter { it.isRunning && mayStop(it, ctx, allowGoogle = ctx.stopGoogle) }.map { it.packageName }
+        if (!ctx.busyKnown) emptyList() else apps.filter { it.isRunning && mayStop(it, ctx, allowGoogle = ctx.stopGoogle) }.map { it.packageName }
 
     /** Basic mode: running state is unknown, so every eligible app; Google never. */
     fun blindKillCandidates(apps: List<AppInfo>, ctx: BoostContext): List<String> =
