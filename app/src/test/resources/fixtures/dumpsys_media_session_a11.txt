@@ -1,0 +1,24 @@
+MEDIA SESSION SERVICE (dumpsys media_session)
+
+Media button session is ru.fmplay/MediaSession (userId=0)
+Sessions Stack - have 2 sessions:
+    ru.fmplay ru.fmplay/MediaSession (userId=0)
+      ownerPid=1234, ownerUid=10087, userId=0
+      package=ru.fmplay
+      launchIntent=null
+      active=true
+      flags=3
+      rating type=0
+      controllers: 1
+      state=PlaybackState {state=3, position=12000, buffered position=0, speed=1.0, updated=5000, actions=566, custom actions=[], active item id=-1, error=null}
+    ru.yandex.music ru.yandex.music/YMusic (userId=0)
+      ownerPid=2234, ownerUid=10090, userId=0
+      package=ru.yandex.music
+      launchIntent=null
+      active=true
+      flags=3
+      state=PlaybackState {state=2, position=0, buffered position=0, speed=0.0, updated=4000, actions=566, custom actions=[], active item id=-1, error=null}
+    com.example.podcast com.example.podcast/Pod (userId=0)
+      package=com.example.podcast
+      active=false
+      state=PlaybackState {state=3, position=0, buffered position=0, speed=1.0, updated=4000, actions=0, custom actions=[], active item id=-1, error=null}

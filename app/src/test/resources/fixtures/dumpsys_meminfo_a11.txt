@@ -1,0 +1,21 @@
+Applications Memory Usage (in Kilobytes):
+Uptime: 5123456 Realtime: 5123456
+
+Total PSS by process:
+    401,230K: com.google.android.gms (pid 2345)
+    540,120K: ru.yandex.yandexnavi (pid 3456 / activities)
+    245,880K: system (pid 1203)
+    211,004K: com.google.android.gms.persistent (pid 1777)
+    180,512K: com.ecarx.launcher (pid 1900 / activities)
+    95,300K: com.example.game (pid 4100)
+    40,100K: com.example.game:push (pid 4120)
+    8820K: com.android.shell (pid 5000)
+
+Total PSS by OOM adjustment:
+    400,000K: Native
+        100,000K: surfaceflinger (pid 600)
+    540,120K: Foreground
+        540,120K: ru.yandex.yandexnavi (pid 3456 / activities)
+
+Total PSS by category:
+    999,999K: Dalvik
