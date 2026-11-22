@@ -52,6 +52,17 @@ class AppsRepository(private val context: Context, private val privileged: Privi
         }
     }
 
+    /** Sum of all apps' cache, without the expensive dumpsys. Zero without usage access. */
+    suspend fun totalCacheBytes(): Long = withContext(Dispatchers.IO) {
+        if (!hasUsageAccess()) return@withContext 0L
+        val stats = context.getSystemService(StorageStatsManager::class.java)
+        val user = Process.myUserHandle()
+        @Suppress("DEPRECATION")
+        pm.getInstalledApplications(0).sumOf { ai ->
+            runCatching { stats.queryStatsForPackage(ai.storageUuid, ai.packageName, user).cacheBytes }.getOrDefault(0L)
+        }
+    }
+
     /** Apps that must not be stopped right now: foreground services, playing media, resumed on any display. */
     suspend fun busyPackages(): Set<String> {
         if (!privileged.isAvailable) return emptySet()
