@@ -1,6 +1,14 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+}
+
+// Release signing lives outside the repo: ~/.android/mcleaner-signing.properties
+val signingProps = Properties().apply {
+    val f = File(System.getProperty("user.home"), ".android/mcleaner-signing.properties")
+    if (f.exists()) f.inputStream().use(::load)
 }
 
 android {
@@ -17,11 +25,26 @@ android {
         versionName = "1.0.0"
     }
 
+    signingConfigs {
+        create("release") {
+            if (signingProps.isNotEmpty()) {
+                storeFile = file(signingProps.getProperty("storeFile"))
+                storePassword = signingProps.getProperty("storePassword")
+                keyAlias = signingProps.getProperty("keyAlias")
+                keyPassword = signingProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             optimization {
-                enable = false
+                enable = true
+                keepRules {
+                    files.add(file("proguard-rules.pro"))
+                }
             }
+            if (signingProps.isNotEmpty()) signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
