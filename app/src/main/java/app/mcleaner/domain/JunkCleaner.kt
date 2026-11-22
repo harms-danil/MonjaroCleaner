@@ -1,6 +1,7 @@
 package app.mcleaner.domain
 
 import android.os.Environment
+import app.mcleaner.core.junk.AppCacheFilter
 import app.mcleaner.core.junk.JunkCategory
 import app.mcleaner.core.junk.JunkItem
 import app.mcleaner.core.junk.JunkScanner
@@ -12,10 +13,11 @@ import java.io.File
 
 class JunkCleaner(private val privileged: Privileged, private val scanner: JunkScanner) {
 
-    suspend fun scan(): List<JunkItem> = withContext(Dispatchers.IO) {
+    /** [whitelist]: app caches of whitelisted and car packages are never offered (offline maps, tracks). */
+    suspend fun scan(whitelist: Set<String>): List<JunkItem> = withContext(Dispatchers.IO) {
         val root = Environment.getExternalStorageDirectory()
         val found = scanner.scan(root).toMutableList()
-        if (privileged.isAvailable) found += appDataCaches(root)
+        if (privileged.isAvailable) found += appDataCaches(root).filter { AppCacheFilter.allowed(it.path, whitelist) }
         found
     }
 

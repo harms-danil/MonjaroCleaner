@@ -58,7 +58,7 @@ class CleanupViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun scan() = work {
-        val items = c.junkCleaner.scan()
+        val items = c.junkCleaner.scan(c.settings.current().whitelist)
         val grouped = items.groupBy { it.category }
         _ui.value = _ui.value.copy(scanned = true, junk = grouped, selected = grouped.keys - JunkCategory.APK)
     }
@@ -81,7 +81,7 @@ class CleanupViewModel(private val c: AppContainer) : ViewModel() {
         _ui.value = _ui.value.copy(confirmDelete = false)
         val removed = c.junkCleaner.delete(items)
         _ui.value = _ui.value.copy(message = "Удалено: $removed из ${items.size}")
-        val rescanned = c.junkCleaner.scan().groupBy { it.category }
+        val rescanned = c.junkCleaner.scan(c.settings.current().whitelist).groupBy { it.category }
         _ui.value = _ui.value.copy(junk = rescanned, selected = _ui.value.selected intersect rescanned.keys)
     }
 

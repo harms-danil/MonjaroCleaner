@@ -31,7 +31,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,6 +51,9 @@ import app.mcleaner.ui.common.PrimaryButton
 import app.mcleaner.ui.common.SystemScreens
 import app.mcleaner.ui.common.containerViewModel
 import app.mcleaner.ui.theme.Palette
+
+private const val MAX_SHOWN = 100
+private const val STORAGE_PREFIX = "/storage/emulated/0"
 
 @Composable
 fun CleanupScreen() {
@@ -104,21 +111,42 @@ fun CleanupScreen() {
                 } else {
                     JunkCategory.entries.filter { it in ui.junk }.forEach { cat ->
                         val items = ui.junk[cat].orEmpty()
-                        Row(
+                        var expanded by rememberSaveable(cat) { mutableStateOf(false) }
+                        Column(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.surface)
-                                .clickable { vm.toggle(cat) }
-                                .heightIn(min = MinTouch).padding(horizontal = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                                .background(MaterialTheme.colorScheme.surface),
                         ) {
-                            Checkbox(checked = cat in ui.selected, onCheckedChange = { vm.toggle(cat) })
-                            Column(Modifier.weight(1f)) {
-                                Text(cat.title)
-                                if (cat == JunkCategory.APK) {
-                                    Text("Проверьте: возможно, это нужные установщики", color = Palette.Warn)
+                            Row(
+                                Modifier.fillMaxWidth().clickable { vm.toggle(cat) }
+                                    .heightIn(min = MinTouch).padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Checkbox(checked = cat in ui.selected, onCheckedChange = { vm.toggle(cat) })
+                                Column(Modifier.weight(1f)) {
+                                    Text(cat.title)
+                                    if (cat == JunkCategory.APK) {
+                                        Text("Проверьте: возможно, это нужные установщики", color = Palette.Warn)
+                                    }
+                                }
+                                Text("${items.size} шт. · ${Formatters.bytes(items.sumOf { it.sizeBytes })}")
+                                TextButton(onClick = { expanded = !expanded }, modifier = Modifier.heightIn(min = MinTouch)) {
+                                    Text(if (expanded) "Скрыть" else "Файлы")
                                 }
                             }
-                            Text("${items.size} шт. · ${Formatters.bytes(items.sumOf { it.sizeBytes })}")
+                            if (expanded) {
+                                Column(Modifier.padding(start = 60.dp, end = 12.dp, bottom = 12.dp)) {
+                                    items.take(MAX_SHOWN).forEach { item ->
+                                        Text(
+                                            "${item.path.removePrefix(STORAGE_PREFIX)}  ·  ${Formatters.bytes(item.sizeBytes)}",
+                                            fontSize = 14.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    if (items.size > MAX_SHOWN) {
+                                        Text("…и ещё ${items.size - MAX_SHOWN}", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                            }
                         }
                     }
                     Button(
