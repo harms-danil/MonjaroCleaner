@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- chip body -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF5DCAA5"
+        android:strokeWidth="4"
+        android:pathData="M38,36h32a2,2 0,0 1,2 2v32a2,2 0,0 1,-2 2h-32a2,2 0,0 1,-2 -2v-32a2,2 0,0 1,2 -2z" />
+    <!-- pins -->
+    <path
+        android:strokeColor="#FF5DCAA5"
+        android:strokeWidth="3"
+        android:pathData="M46,30v6M54,30v6M62,30v6M46,72v6M54,72v6M62,72v6M30,46h6M30,54h6M30,62h6M72,46h6M72,54h6M72,62h6" />
+    <!-- spark / boost -->
+    <path
+        android:fillColor="#FFEF9F27"
+        android:pathData="M57,42l-11,14h7l-3,10l11,-14h-7z" />
+</vector>
