@@ -107,6 +107,15 @@ class BoostPolicyTest {
     }
 
     @Test
+    fun canStopManually_userAndGoogleOnly() {
+        assertTrue(BoostPolicy.canStopManually(app("com.example.game"), "app.mcleaner"))
+        assertTrue(BoostPolicy.canStopManually(app("com.google.android.gms", system = true), "app.mcleaner"))
+        assertFalse(BoostPolicy.canStopManually(app("com.android.settings", system = true), "app.mcleaner"))
+        assertFalse(BoostPolicy.canStopManually(app("com.ecarx.radio"), "app.mcleaner"))
+        assertFalse(BoostPolicy.canStopManually(app("app.mcleaner"), "app.mcleaner"))
+    }
+
+    @Test
     fun canFreeze_rejectsSystemGoogleSelfShizuku() {
         assertTrue(BoostPolicy.canFreeze(app("com.example.game"), "app.mcleaner"))
         assertFalse(BoostPolicy.canFreeze(app("com.android.settings", system = true), "app.mcleaner"))

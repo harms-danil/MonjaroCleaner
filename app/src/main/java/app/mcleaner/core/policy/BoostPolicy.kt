@@ -30,6 +30,13 @@ object BoostPolicy {
     fun cacheTargets(apps: List<AppInfo>, whitelist: Set<String>): List<String> =
         apps.map { it.packageName }.filter { it !in whitelist && !isCarSystem(it) }
 
+    /** Manual "Stop" in the app list: user apps and Google; never system or car packages. */
+    fun canStopManually(app: AppInfo, selfPackage: String): Boolean {
+        val pkg = app.packageName
+        if (pkg == selfPackage || pkg == SHIZUKU_PACKAGE || isCarSystem(pkg)) return false
+        return !app.isSystem || pkg in GOOGLE_PACKAGES
+    }
+
     fun canFreeze(app: AppInfo, selfPackage: String): Boolean {
         val pkg = app.packageName
         return !app.isSystem && pkg !in GOOGLE_PACKAGES && pkg != selfPackage &&

@@ -1,0 +1,129 @@
+package app.mcleaner.ui.settings
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.mcleaner.privileged.ShizukuState
+import app.mcleaner.ui.common.Badge
+import app.mcleaner.ui.common.BadgeKind
+import app.mcleaner.ui.common.MinTouch
+import app.mcleaner.ui.common.containerViewModel
+import app.mcleaner.ui.common.title
+
+@Composable
+fun SettingsScreen(onAutoBoostChanged: (Boolean) -> Unit = {}) {
+    val vm = containerViewModel { SettingsViewModel(it) }
+    vm.onAutoBoostChanged = onAutoBoostChanged
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    val shizuku by vm.shizuku.collectAsStateWithLifecycle()
+    val message by vm.message.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
+    val full = shizuku == ShizukuState.READY
+
+    LaunchedEffect(Unit) { vm.refreshShizuku() }
+    LaunchedEffect(message) {
+        message?.let {
+            snackbar.showSnackbar(it)
+            vm.consumeMessage()
+        }
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Section {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Полный режим (Shizuku)", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    Badge(shizuku.title(), if (full) BadgeKind.GOOD else BadgeKind.WARN)
+                }
+                if (!full) {
+                    ShizukuGuide()
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Button(
+                            onClick = vm::requestPermission,
+                            enabled = shizuku == ShizukuState.NO_PERMISSION,
+                            modifier = Modifier.heightIn(min = MinTouch),
+                        ) { Text("Запросить разрешение") }
+                        OutlinedButton(onClick = vm::refreshShizuku, modifier = Modifier.heightIn(min = MinTouch)) { Text("Проверить снова") }
+                    }
+                } else {
+                    Text("Приложения останавливаются и кэш чистится от имени системы (ADB). Root не нужен.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Section {
+                SwitchRow(
+                    title = "Автоускорение",
+                    subtitle = "После загрузки (через 90 с) и пробуждения магнитолы (через 30 с), не чаще раза в 10 минут. Работает, только если Shizuku запущен.",
+                    checked = settings?.autoBoost == true,
+                    onChange = vm::setAutoBoost,
+                )
+                SwitchRow(
+                    title = "Останавливать Google-сервисы",
+                    subtitle = "Освобождает больше памяти, но Google-сервисы сразу перезапускаются, а Play и зависящие от него приложения могут сбоить.",
+                    checked = settings?.stopGoogle == true,
+                    onChange = vm::setStopGoogle,
+                )
+            }
+            Section {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Замороженные приложения: ${settings?.frozen?.size ?: 0}")
+                        Text("Белый список: ${settings?.whitelist?.size ?: 0} приложений — меняется на вкладке «Приложения»", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    OutlinedButton(
+                        onClick = vm::unfreezeAll,
+                        enabled = full && !settings?.frozen.isNullOrEmpty(),
+                        modifier = Modifier.heightIn(min = MinTouch),
+                    ) { Text("Разморозить всё") }
+                }
+            }
+            Text("MCleaner ${vm.version}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
+    }
+}
+
+@Composable
+private fun Section(content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surface).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        content = content,
+    )
+}
+
+@Composable
+private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().heightIn(min = MinTouch), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(title)
+            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Switch(checked = checked, onCheckedChange = onChange)
+    }
+}
