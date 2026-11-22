@@ -156,6 +156,10 @@ object SystemScreens {
     fun appDetails(ctx: Context, pkg: String) = start(ctx, Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg")))
     fun usageAccess(ctx: Context) = start(ctx, Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
     fun allFilesAccess(ctx: Context) {
+        if (android.os.Build.VERSION.SDK_INT < 30) {
+            appDetails(ctx, ctx.packageName)
+            return
+        }
         val specific = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:${ctx.packageName}"))
         if (!start(ctx, specific)) start(ctx, Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
     }
