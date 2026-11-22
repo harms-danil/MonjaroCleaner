@@ -28,7 +28,16 @@ class DumpsysStateParsersTest {
     }
 
     @Test
+    fun resumedActivities_allDisplays_notPaused() {
+        assertEquals(
+            setOf("ru.yandex.yandexnavi", "com.ecarx.cluster"),
+            DumpsysStateParsers.resumedPackages(Fixtures.read("dumpsys_activities_a11.txt")),
+        )
+    }
+
+    @Test
     fun emptyInputs_empty() {
+        assertEquals(emptySet<String>(), DumpsysStateParsers.resumedPackages(""))
         assertEquals(emptySet<String>(), DumpsysStateParsers.foregroundServicePackages(""))
         assertEquals(emptySet<String>(), DumpsysStateParsers.activeMediaSessionPackages(""))
     }

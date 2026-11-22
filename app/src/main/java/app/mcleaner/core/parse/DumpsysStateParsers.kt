@@ -47,5 +47,11 @@ object DumpsysStateParsers {
         return result
     }
 
+    /** Packages of resumed activities on every display (`dumpsys activity activities`). */
+    fun resumedPackages(dumpsysActivities: String): Set<String> =
+        resumed.findAll(dumpsysActivities).map { it.groupValues[1] }.toSet()
+
+    private val resumed = Regex("""(?m)^\s*m?ResumedActivity: ActivityRecord\{\S+ u\d+ ([^/\s]+)/""")
+
     fun currentUser(amGetCurrentUserOut: String): Int = amGetCurrentUserOut.trim().toIntOrNull() ?: 0
 }

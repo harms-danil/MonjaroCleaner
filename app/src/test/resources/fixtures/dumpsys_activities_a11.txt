@@ -1,0 +1,10 @@
+ACTIVITY MANAGER ACTIVITIES (dumpsys activity activities)
+Display #0 (activities from top to bottom):
+  * Task{a1 #12 visible=true type=standard mode=fullscreen translucent=false A=10123:ru.yandex.yandexnavi U=0 StackId=12 sz=1}
+    mResumedActivity: ActivityRecord{8c1a2b3 u0 ru.yandex.yandexnavi/.NaviActivity t12}
+    mLastPausedActivity: ActivityRecord{77aa u0 com.example.game/.Main t15}
+Display #2 (activities from top to bottom):
+  * Task{b2 #3 visible=true type=standard mode=fullscreen translucent=false A=1000:com.ecarx.cluster U=0 StackId=3 sz=1}
+    mResumedActivity: ActivityRecord{55ee u0 com.ecarx.cluster/.ClusterActivity t3}
+
+  ResumedActivity: ActivityRecord{8c1a2b3 u0 ru.yandex.yandexnavi/.NaviActivity t12}
