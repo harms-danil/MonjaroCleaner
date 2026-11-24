@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import app.mcleaner.AppContainer
 import app.mcleaner.core.junk.JunkCategory
 import app.mcleaner.core.junk.JunkItem
+import app.mcleaner.core.junk.JunkSelection
 import app.mcleaner.core.policy.BoostPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,12 +16,13 @@ data class CleanupUi(
     val busy: Boolean = false,
     val scanned: Boolean = false,
     val junk: Map<JunkCategory, List<JunkItem>> = emptyMap(),
-    val selected: Set<JunkCategory> = emptySet(),
+    /** Selected file paths. */
+    val selected: Set<String> = emptySet(),
     val askTrimAll: Boolean = false,
     val confirmDelete: Boolean = false,
     val message: String? = null,
 ) {
-    val selectedItems: List<JunkItem> get() = selected.flatMap { junk[it].orEmpty() }
+    val selectedItems: List<JunkItem> get() = JunkSelection.selectedItems(junk, selected)
     val selectedBytes: Long get() = selectedItems.sumOf { it.sizeBytes }
 }
 
@@ -60,12 +62,17 @@ class CleanupViewModel(private val c: AppContainer) : ViewModel() {
     fun scan() = work {
         val items = c.junkCleaner.scan(c.settings.current().whitelist)
         val grouped = items.groupBy { it.category }
-        _ui.value = _ui.value.copy(scanned = true, junk = grouped, selected = grouped.keys - JunkCategory.APK)
+        _ui.value = _ui.value.copy(scanned = true, junk = grouped, selected = JunkSelection.initial(grouped))
     }
 
-    fun toggle(category: JunkCategory) {
-        val s = _ui.value.selected
-        _ui.value = _ui.value.copy(selected = if (category in s) s - category else s + category)
+    fun toggleCategory(category: JunkCategory) {
+        val u = _ui.value
+        _ui.value = u.copy(selected = JunkSelection.toggleCategory(u.selected, category, u.junk))
+    }
+
+    fun toggleItem(path: String) {
+        val u = _ui.value
+        _ui.value = u.copy(selected = JunkSelection.toggleItem(u.selected, path))
     }
 
     fun askDelete() {
@@ -82,7 +89,7 @@ class CleanupViewModel(private val c: AppContainer) : ViewModel() {
         val removed = c.junkCleaner.delete(items)
         _ui.value = _ui.value.copy(message = "Удалено: $removed из ${items.size}")
         val rescanned = c.junkCleaner.scan(c.settings.current().whitelist).groupBy { it.category }
-        _ui.value = _ui.value.copy(junk = rescanned, selected = _ui.value.selected intersect rescanned.keys)
+        _ui.value = _ui.value.copy(junk = rescanned, selected = JunkSelection.retain(_ui.value.selected, rescanned))
     }
 
     fun consumeMessage() {

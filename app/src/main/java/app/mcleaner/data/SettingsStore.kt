@@ -32,6 +32,8 @@ class SettingsStore(private val context: Context) {
         p[WHITELIST] = if (on) cur + pkg else cur - pkg
     }
 
+    suspend fun resetWhitelist() = context.dataStore.edit { it[WHITELIST] = DEFAULT_WHITELIST }
+
     suspend fun setAutoBoost(on: Boolean) = context.dataStore.edit { it[AUTO_BOOST] = on }
 
     suspend fun setStopGoogle(on: Boolean) = context.dataStore.edit { it[STOP_GOOGLE] = on }

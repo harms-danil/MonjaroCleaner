@@ -13,6 +13,7 @@ import android.provider.Settings
 import app.mcleaner.core.model.AppInfo
 import app.mcleaner.core.parse.DumpsysMeminfoParser
 import app.mcleaner.core.parse.DumpsysStateParsers
+import app.mcleaner.core.policy.InstalledApp
 import app.mcleaner.privileged.Privileged
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -20,6 +21,18 @@ import kotlinx.coroutines.withContext
 class AppsRepository(private val context: Context, private val privileged: Privileged) {
 
     private val pm: PackageManager = context.packageManager
+
+    /** Lightweight list (labels only, no memory/cache stats) for pickers. */
+    suspend fun installedApps(): List<InstalledApp> = withContext(Dispatchers.IO) {
+        @Suppress("DEPRECATION")
+        pm.getInstalledApplications(PackageManager.MATCH_DISABLED_COMPONENTS).map { ai ->
+            InstalledApp(
+                packageName = ai.packageName,
+                label = runCatching { ai.loadLabel(pm).toString() }.getOrDefault(ai.packageName),
+                isSystem = ai.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0,
+            )
+        }
+    }
 
     suspend fun loadApps(): List<AppInfo> = withContext(Dispatchers.IO) {
         @Suppress("DEPRECATION")

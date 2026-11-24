@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.TriStateCheckbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -40,9 +41,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.mcleaner.core.junk.CategoryState
 import app.mcleaner.core.junk.JunkCategory
+import app.mcleaner.core.junk.JunkSelection
 import app.mcleaner.privileged.ShizukuState
 import app.mcleaner.ui.common.Formatters
 import app.mcleaner.ui.common.MinTouch
@@ -116,34 +121,61 @@ fun CleanupScreen() {
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
                                 .background(MaterialTheme.colorScheme.surface),
                         ) {
+                            val state = when (JunkSelection.state(cat, ui.junk, ui.selected)) {
+                                CategoryState.ALL -> ToggleableState.On
+                                CategoryState.SOME -> ToggleableState.Indeterminate
+                                CategoryState.NONE -> ToggleableState.Off
+                            }
+                            val chosen = items.filter { it.path in ui.selected }
                             Row(
-                                Modifier.fillMaxWidth().clickable { vm.toggle(cat) }
+                                Modifier.fillMaxWidth().clickable { vm.toggleCategory(cat) }
                                     .heightIn(min = MinTouch).padding(horizontal = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Checkbox(checked = cat in ui.selected, onCheckedChange = { vm.toggle(cat) })
+                                TriStateCheckbox(state = state, onClick = { vm.toggleCategory(cat) })
                                 Column(Modifier.weight(1f)) {
                                     Text(cat.title)
                                     if (cat == JunkCategory.APK) {
                                         Text("Проверьте: возможно, это нужные установщики", color = Palette.Warn)
                                     }
                                 }
-                                Text("${items.size} шт. · ${Formatters.bytes(items.sumOf { it.sizeBytes })}")
+                                Text(
+                                    if (chosen.size == items.size || chosen.isEmpty()) "${items.size} шт. · ${Formatters.bytes(items.sumOf { it.sizeBytes })}"
+                                    else "выбрано ${chosen.size} из ${items.size} · ${Formatters.bytes(chosen.sumOf { it.sizeBytes })}",
+                                )
                                 TextButton(onClick = { expanded = !expanded }, modifier = Modifier.heightIn(min = MinTouch)) {
-                                    Text(if (expanded) "Скрыть" else "Файлы")
+                                    Text(if (expanded) "Скрыть" else "Выбрать файлы")
                                 }
                             }
                             if (expanded) {
-                                Column(Modifier.padding(start = 60.dp, end = 12.dp, bottom = 12.dp)) {
+                                Column(Modifier.padding(start = 36.dp, end = 12.dp, bottom = 12.dp)) {
                                     items.take(MAX_SHOWN).forEach { item ->
+                                        Row(
+                                            Modifier.fillMaxWidth().clickable { vm.toggleItem(item.path) }.heightIn(min = 48.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Checkbox(checked = item.path in ui.selected, onCheckedChange = { vm.toggleItem(item.path) })
+                                            Text(
+                                                item.path.removePrefix(STORAGE_PREFIX),
+                                                fontSize = 14.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.MiddleEllipsis,
+                                                modifier = Modifier.weight(1f),
+                                            )
+                                            Text(
+                                                Formatters.bytes(item.sizeBytes),
+                                                fontSize = 14.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.padding(start = 12.dp),
+                                            )
+                                        }
+                                    }
+                                    if (items.size > MAX_SHOWN) {
                                         Text(
-                                            "${item.path.removePrefix(STORAGE_PREFIX)}  ·  ${Formatters.bytes(item.sizeBytes)}",
+                                            "…и ещё ${items.size - MAX_SHOWN}: их выбор меняется галочкой категории",
                                             fontSize = 14.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
-                                    }
-                                    if (items.size > MAX_SHOWN) {
-                                        Text("…и ещё ${items.size - MAX_SHOWN}", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 }
                             }

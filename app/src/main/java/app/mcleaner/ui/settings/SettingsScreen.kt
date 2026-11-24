@@ -43,6 +43,7 @@ fun SettingsScreen(onAutoBoostChanged: (Boolean) -> Unit = {}) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val shizuku by vm.shizuku.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
+    val whitelist by vm.whitelistEntries.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val full = shizuku == ShizukuState.READY
 
@@ -90,10 +91,18 @@ fun SettingsScreen(onAutoBoostChanged: (Boolean) -> Unit = {}) {
                 )
             }
             Section {
+                WhitelistSection(
+                    entries = whitelist,
+                    candidates = vm::candidates,
+                    onAdd = { vm.setWhitelisted(it, true) },
+                    onRemove = { vm.setWhitelisted(it, false) },
+                    onReset = vm::resetWhitelist,
+                )
+            }
+            Section {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Замороженные приложения: ${settings?.frozen?.size ?: 0}")
-                        Text("Белый список: ${settings?.whitelist?.size ?: 0} приложений — меняется на вкладке «Приложения»", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     OutlinedButton(
                         onClick = vm::unfreezeAll,
