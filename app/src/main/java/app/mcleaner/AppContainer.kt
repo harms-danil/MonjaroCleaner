@@ -12,6 +12,7 @@ import app.mcleaner.domain.CacheCleaner
 import app.mcleaner.domain.FreezeManager
 import app.mcleaner.domain.JunkCleaner
 import app.mcleaner.privileged.ShizukuPrivileged
+import app.mcleaner.update.UpdateManager
 
 /** Manual DI. `shizuku` is handed out as `Privileged`: it reports unavailable whenever Shizuku is not READY. */
 class AppContainer(context: Context) {
@@ -22,6 +23,7 @@ class AppContainer(context: Context) {
     val apps = AppsRepository(appContext, shizuku)
     val cacheCleaner = CacheCleaner(shizuku)
     val junkCleaner = JunkCleaner(shizuku, JunkScanner())
+    val updates = UpdateManager(appContext, shizuku)
 
     val freezeManager = FreezeManager(
         privileged = shizuku,

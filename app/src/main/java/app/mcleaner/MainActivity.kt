@@ -16,6 +16,8 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             if (container.settings.current().autoBoost) WakeWatchService.start(this@MainActivity)
         }
+        // Once per launch (not on rotation): silent, retries while offline.
+        if (savedInstanceState == null) container.updates.autoCheck()
         setContent {
             MCleanerTheme { MainScreen() }
         }

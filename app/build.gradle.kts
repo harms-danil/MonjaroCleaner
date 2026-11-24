@@ -21,8 +21,8 @@ android {
         applicationId = "app.mcleaner"
         minSdk = 28
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.1.0"
     }
 
     signingConfigs {
@@ -79,4 +79,6 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    // Real org.json for JVM tests (android.jar only ships stubs).
+    testImplementation(libs.org.json)
 }

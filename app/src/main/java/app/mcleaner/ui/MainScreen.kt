@@ -40,6 +40,7 @@ import app.mcleaner.ui.common.FullModeBanner
 import app.mcleaner.ui.common.container
 import app.mcleaner.ui.overview.OverviewScreen
 import app.mcleaner.ui.settings.SettingsScreen
+import app.mcleaner.ui.update.UpdateDialog
 
 private enum class Tab(val title: String, val icon: ImageVector) {
     OVERVIEW("Обзор", Icons.Outlined.Speed),
@@ -96,4 +97,5 @@ fun MainScreen() {
             }
         }
     }
+    UpdateDialog(c.updates)
 }

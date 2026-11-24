@@ -35,6 +35,8 @@ import app.mcleaner.ui.common.BadgeKind
 import app.mcleaner.ui.common.MinTouch
 import app.mcleaner.ui.common.containerViewModel
 import app.mcleaner.ui.common.title
+import app.mcleaner.ui.common.container
+import app.mcleaner.ui.update.UpdateSection
 
 @Composable
 fun SettingsScreen(onAutoBoostChanged: (Boolean) -> Unit = {}) {
@@ -111,7 +113,7 @@ fun SettingsScreen(onAutoBoostChanged: (Boolean) -> Unit = {}) {
                     ) { Text("Разморозить всё") }
                 }
             }
-            Text("MCleaner ${vm.version}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Section { UpdateSection(container().updates) }
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }
