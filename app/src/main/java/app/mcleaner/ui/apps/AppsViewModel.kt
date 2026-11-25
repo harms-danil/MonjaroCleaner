@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import app.mcleaner.AppContainer
 import app.mcleaner.core.model.AppInfo
 import app.mcleaner.core.policy.BoostPolicy
+import app.mcleaner.privileged.shellQuote
 import app.mcleaner.ui.common.Formatters
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +30,8 @@ data class AppsUi(
     val sort: AppSort = AppSort.MEMORY,
     val onlyRunning: Boolean = false,
     val message: String? = null,
+    /** Launchers and the keyboard: never frozen. Null until loaded, and then nothing may be frozen. */
+    val freezeProtected: Set<String>? = null,
 ) {
     val visible: List<AppInfo>
         get() = apps
@@ -63,7 +66,8 @@ class AppsViewModel(private val c: AppContainer) : ViewModel() {
         _ui.value = _ui.value.copy(loading = true)
         viewModelScope.launch {
             val apps = c.apps.loadApps()
-            _ui.value = _ui.value.copy(loading = false, apps = apps)
+            val protected = c.apps.freezeProtectedPackages()
+            _ui.value = _ui.value.copy(loading = false, apps = apps, freezeProtected = protected)
         }
     }
 
@@ -79,12 +83,15 @@ class AppsViewModel(private val c: AppContainer) : ViewModel() {
         _ui.value = _ui.value.copy(message = null)
     }
 
-    fun canFreeze(app: AppInfo) = BoostPolicy.canFreeze(app, selfPackage)
+    fun canFreeze(app: AppInfo): Boolean {
+        val protected = _ui.value.freezeProtected ?: return false
+        return BoostPolicy.canFreeze(app, selfPackage, whitelist.value, protected)
+    }
 
     fun canStop(app: AppInfo): Boolean = BoostPolicy.canStopManually(app, selfPackage)
 
     fun stop(app: AppInfo) = act(tr("${app.label}: остановлено", "${app.label}: stopped"), tr("${app.label}: не удалось остановить", "${app.label}: could not stop")) {
-        c.shizuku.exec("am force-stop ${app.packageName}").ok
+        c.shizuku.exec("am force-stop ${shellQuote(app.packageName)}").ok
     }
 
     /**
@@ -109,7 +116,8 @@ class AppsViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun freeze(app: AppInfo) = act(tr("${app.label}: заморожено", "${app.label}: frozen"), tr("${app.label}: не удалось заморозить", "${app.label}: could not freeze")) {
-        c.freezeManager.freeze(app, selfPackage)
+        // Fresh values, not the cached UI state: the launcher or keyboard may have changed meanwhile.
+        c.freezeManager.freeze(app, selfPackage, c.settings.current().whitelist, c.apps.freezeProtectedPackages())
     }
 
     fun unfreeze(app: AppInfo) = act(tr("${app.label}: разморожено", "${app.label}: unfrozen"), tr("${app.label}: не удалось разморозить", "${app.label}: could not unfreeze")) {

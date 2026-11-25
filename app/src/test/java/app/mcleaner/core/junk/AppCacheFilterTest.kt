@@ -31,4 +31,27 @@ class AppCacheFilterTest {
     fun unparsablePath_excluded() {
         assertFalse(AppCacheFilter.allowed("/sdcard/weird", whitelist))
     }
+
+    @Test
+    fun invalidPackageName_excluded() {
+        assertFalse(AppCacheFilter.allowed("/sdcard/Android/data/../cache", whitelist))
+        assertFalse(AppCacheFilter.allowed("/sdcard/Android/data/x/cache", whitelist))
+    }
+
+    @Test
+    fun ownerOfAppFolders() {
+        assertEquals("com.x.y", AppCacheFilter.ownerOf("/sdcard/Android/data/com.x.y/files/a.log"))
+        assertEquals("com.x.y", AppCacheFilter.ownerOf("/sdcard/Android/media/com.x.y"))
+        assertEquals("com.x.y", AppCacheFilter.ownerOf("/sdcard/Android/data/com.x.y/cache"))
+        assertNull(AppCacheFilter.ownerOf("/sdcard/Download/a.log"))
+        assertNull(AppCacheFilter.ownerOf("/sdcard/Android/obb/com.x.y/main.obb"))
+    }
+
+    @Test
+    fun protectedOwner_whitelistAndCar() {
+        assertTrue(AppCacheFilter.protectedOwner("/sdcard/Android/data/ru.yandex.yandexnavi/files/a.log", whitelist))
+        assertTrue(AppCacheFilter.protectedOwner("/sdcard/Android/media/com.geely.music/b.log", whitelist))
+        assertFalse(AppCacheFilter.protectedOwner("/sdcard/Android/data/com.example.game/files/a.log", whitelist))
+        assertFalse(AppCacheFilter.protectedOwner("/sdcard/Download/a.log", whitelist))
+    }
 }

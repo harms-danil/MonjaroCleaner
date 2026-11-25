@@ -51,7 +51,7 @@ class AppContainer(context: Context) {
 
     /** Every boost goes through here so that it lands in the history. One at a time. */
     suspend fun runBoost(source: BoostSource): BoostReport = boostLock.withLock {
-        val report = boost.run()
+        val report = boost.run(clearCache = source != BoostSource.SCHEDULE)
         history.add(
             BoostRecord(
                 timeMs = System.currentTimeMillis(),
@@ -115,7 +115,7 @@ class AppContainer(context: Context) {
             launcherPackage = apps.launcherPackage(),
             imePackage = apps.imePackage(),
             selfPackage = appContext.packageName,
-            busyPackages = busy.packages,
+            busyPackages = busy.packages + apps.carUsabilityPackages(),
             busyKnown = busy.known,
         )
     }

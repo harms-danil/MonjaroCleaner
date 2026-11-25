@@ -4,6 +4,9 @@ import app.mcleaner.core.model.AppInfo
 import app.mcleaner.core.policy.BoostContext
 import app.mcleaner.core.policy.BoostPolicy
 import app.mcleaner.privileged.Privileged
+import app.mcleaner.privileged.shellQuote
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 data class BoostReport(
     val fullMode: Boolean,
@@ -29,7 +32,8 @@ class BoostUseCase(
     /** Shared storage root for the per-app external cache fallback. */
     private val externalRoot: String = "/storage/emulated/0",
 ) {
-    suspend fun run(): BoostReport {
+    /** [clearCache]: false for unattended (scheduled) boosts: caches are cleared only when the user asks. */
+    suspend fun run(clearCache: Boolean = true): BoostReport {
         val ramBefore = readFreeRamKb()
         val cacheBefore = totalCacheBytes()
         val apps = loadApps()
@@ -41,22 +45,26 @@ class BoostUseCase(
         val stoppedPackages = mutableListOf<String>()
         if (full) {
             for (pkg in BoostPolicy.killCandidates(apps, ctx)) {
-                if (privileged.exec("am force-stop $pkg").ok) {
+                if (privileged.exec("am force-stop ${shellQuote(pkg)}").ok) {
                     stopped++
                     stoppedPackages += pkg
                 } else {
                     failed += pkg
                 }
             }
-            if (privileged.isAvailable) {
-                val targets = BoostPolicy.cacheTargets(apps, ctx.whitelist)
+            if (clearCache && privileged.isAvailable) {
+                val inUse = ctx.busyPackages + setOfNotNull(ctx.foregroundPackage, ctx.launcherPackage, ctx.imePackage)
+                val targets = BoostPolicy.cacheTargets(apps, ctx.whitelist, inUse)
                 val r = cacheCleaner.clearMany(targets, currentUser())
                 // Android 8+ refuses per-app internal cache to non-system callers: clear what is allowed.
                 if (r.perPackageUnsupported) cacheCleaner.clearExternal(targets, externalRoot)
             }
         } else {
-            for (pkg in BoostPolicy.blindKillCandidates(apps, ctx)) {
-                runCatching { killBackground(pkg) }.onSuccess { stopped++ }.onFailure { failed += pkg }
+            // killBackgroundProcesses is a blocking binder call per app: keep it off the caller's (Main) thread.
+            withContext(Dispatchers.IO) {
+                for (pkg in BoostPolicy.blindKillCandidates(apps, ctx)) {
+                    runCatching { killBackground(pkg) }.onSuccess { stopped++ }.onFailure { failed += pkg }
+                }
             }
         }
 

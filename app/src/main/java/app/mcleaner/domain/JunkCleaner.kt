@@ -11,12 +11,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
-class JunkCleaner(private val privileged: Privileged, private val scanner: JunkScanner) {
+class JunkCleaner(
+    private val privileged: Privileged,
+    private val scanner: JunkScanner,
+    private val root: () -> File = { Environment.getExternalStorageDirectory() },
+) {
 
-    /** [whitelist]: app caches of whitelisted and car packages are never offered (offline maps, tracks). */
+    /**
+     * [whitelist]: nothing under `Android/data|media/<pkg>` of whitelisted and car packages is offered
+     * (offline maps, tracks, settings), neither found files nor app caches.
+     */
     suspend fun scan(whitelist: Set<String>): List<JunkItem> = withContext(Dispatchers.IO) {
-        val root = Environment.getExternalStorageDirectory()
-        val found = scanner.scan(root).toMutableList()
+        val root = root()
+        val found = scanner.scan(root).filterTo(mutableListOf()) { !AppCacheFilter.protectedOwner(it.path, whitelist) }
         if (privileged.isAvailable) {
             val seen = found.mapTo(HashSet()) { it.path }
             // An empty cache dir is already listed as an empty folder: list each path once.
@@ -25,17 +32,32 @@ class JunkCleaner(private val privileged: Privileged, private val scanner: JunkS
         found
     }
 
-    /** Returns how many items were removed. */
+    /**
+     * Returns how many items were removed. Each kind gets the narrowest command that does the job:
+     * empty folders `rmdir` (fails unless empty), files `rm -f`; only an app's `Android/data/<pkg>/cache`
+     * folder is removed recursively. `Android/data` is hidden from apps on Android 11, so it goes via shell.
+     */
     suspend fun delete(items: List<JunkItem>): Int = withContext(Dispatchers.IO) {
-        items.count { item ->
-            val file = File(item.path)
-            val viaShell = "/Android/data/" in item.path && privileged.isAvailable
-            when {
-                viaShell -> privileged.exec("rm -rf ${shellQuote(item.path)}").ok
-                file.isDirectory -> file.listFiles().isNullOrEmpty() && file.delete()
-                else -> file.delete()
+        items.count { deleteOne(it) }
+    }
+
+    private suspend fun deleteOne(item: JunkItem): Boolean {
+        val path = item.path
+        val file = File(path)
+        val viaShell = "/Android/data/" in path && privileged.isAvailable
+        if (item.category == JunkCategory.EMPTY_DIRS) {
+            return if (viaShell) {
+                privileged.exec("rmdir ${shellQuote(path)}").ok
+            } else {
+                file.isDirectory && file.listFiles()?.isEmpty() == true && file.delete()
             }
         }
+        if (AppCacheFilter.packageOf(path) != null) {
+            // Re-checked here: a recursive delete only ever hits a real app's cache folder.
+            return privileged.isAvailable && AppCacheFilter.allowed(path, emptySet()) &&
+                privileged.exec("rm -rf ${shellQuote(path)}").ok
+        }
+        return if (viaShell) privileged.exec("rm -f ${shellQuote(path)}").ok else file.isFile && file.delete()
     }
 
     /** `Android/data/<pkg>/cache` dirs are hidden from apps on Android 11, but visible to shell. */
