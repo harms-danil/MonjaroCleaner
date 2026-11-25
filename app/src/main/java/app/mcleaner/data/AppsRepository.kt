@@ -133,7 +133,8 @@ class AppsRepository(private val context: Context, private val privileged: Privi
         if (Build.VERSION.SDK_INT >= 30) {
             Environment.isExternalStorageManager()
         } else {
-            context.checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+            context.checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
+                context.checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
         }
 
     private companion object {
@@ -149,6 +150,8 @@ class AppsRepository(private val context: Context, private val privileged: Privi
             if (Build.VERSION.SDK_INT >= 30) {
                 privileged.exec("appops set $me MANAGE_EXTERNAL_STORAGE allow")
             } else {
+                // Android 9/10: shared storage opens up only with READ_EXTERNAL_STORAGE, WRITE alone is not enough.
+                privileged.exec("pm grant $me android.permission.READ_EXTERNAL_STORAGE")
                 privileged.exec("pm grant $me android.permission.WRITE_EXTERNAL_STORAGE")
             }
         }

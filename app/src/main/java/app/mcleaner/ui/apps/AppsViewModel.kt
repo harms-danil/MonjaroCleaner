@@ -33,8 +33,8 @@ data class AppsUi(
             .filter { !onlyRunning || it.isRunning }
             .sortedWith(
                 when (sort) {
-                    AppSort.MEMORY -> compareByDescending<AppInfo> { it.pssKb ?: -1 }.thenByDescending { it.cacheBytes ?: -1 }
-                    AppSort.CACHE -> compareByDescending<AppInfo> { it.cacheBytes ?: -1 }.thenByDescending { it.pssKb ?: -1 }
+                    AppSort.MEMORY -> compareByDescending<AppInfo> { it.pssKb ?: -1L }.thenByDescending { it.cacheBytes ?: -1L }
+                    AppSort.CACHE -> compareByDescending<AppInfo> { it.cacheBytes ?: -1L }.thenByDescending { it.pssKb ?: -1L }
                 },
             )
 }

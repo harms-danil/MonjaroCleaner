@@ -19,7 +19,7 @@ class JunkScanner(private val maxDepth: Int = 12) {
             if (child.isDirectory) {
                 val listing = child.listFiles() ?: continue
                 if (listing.isEmpty()) {
-                    JunkClassifier.classify(child.path, isDirectory = true, isEmptyDir = true)
+                    JunkClassifier.classify(child.path, isDirectory = true, isEmptyDir = true, topLevel = depth == 1)
                         ?.let { out += JunkItem(child.path, 0, it) }
                 } else {
                     walkChildren(child, depth + 1, out)

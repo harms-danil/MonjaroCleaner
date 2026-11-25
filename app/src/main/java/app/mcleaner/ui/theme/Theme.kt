@@ -1,9 +1,11 @@
 package app.mcleaner.ui.theme
 
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -17,6 +19,7 @@ object Palette {
     val Good = Color(0xFF5DCAA5)
     val Warn = Color(0xFFEF9F27)
     val Bad = Color(0xFFE24B4A)
+    val Text = Color(0xFFE8EAED)
     val TextMuted = Color(0xFF9AA3AD)
 }
 
@@ -31,6 +34,8 @@ private val colors = darkColorScheme(
     surfaceContainerHigh = Palette.SurfaceHigh,
     onSurfaceVariant = Palette.TextMuted,
     error = Palette.Bad,
+    onBackground = Palette.Text,
+    onSurface = Palette.Text,
 )
 
 private val typography = Typography(
@@ -44,5 +49,9 @@ private val typography = Typography(
 
 @Composable
 fun MCleanerTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = colors, typography = typography, content = content)
+    MaterialTheme(colorScheme = colors, typography = typography) {
+        // Screens draw on plain backgrounds (no Surface), so set the default text colour explicitly:
+        // otherwise Text without a colour falls back to black on the dark background.
+        CompositionLocalProvider(LocalContentColor provides Palette.Text, content = content)
+    }
 }

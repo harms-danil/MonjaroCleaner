@@ -2,10 +2,13 @@ package app.mcleaner.ui.settings
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -37,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import app.mcleaner.core.policy.InstalledApp
 import app.mcleaner.core.policy.WhitelistEntry
 import app.mcleaner.ui.common.Badge
@@ -105,7 +109,9 @@ private fun AddDialog(candidates: (String) -> List<InstalledApp>, onPick: (Strin
     var query by remember { mutableStateOf("") }
     var added by remember { mutableStateOf(setOf<String>()) }
     val list = candidates(query).filter { it.packageName !in added }
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        // Head unit screens are only ~720 px tall: shrink the list above the keyboard instead of hiding it.
+        Box(Modifier.fillMaxSize().systemBarsPadding().imePadding().padding(12.dp), contentAlignment = Alignment.Center) {
         Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.widthIn(max = 720.dp)) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Добавить в белый список", style = MaterialTheme.typography.titleLarge)
@@ -117,7 +123,7 @@ private fun AddDialog(candidates: (String) -> List<InstalledApp>, onPick: (Strin
                     placeholder = { Text("Название или пакет") },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                LazyColumn(Modifier.fillMaxWidth().height(380.dp)) {
+                LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false).heightIn(max = 380.dp)) {
                     items(list, key = { it.packageName }) { app ->
                         Row(
                             Modifier.fillMaxWidth().clickable { onPick(app.packageName); added = added + app.packageName }
@@ -141,6 +147,7 @@ private fun AddDialog(candidates: (String) -> List<InstalledApp>, onPick: (Strin
                     }
                 }
             }
+        }
         }
     }
 }

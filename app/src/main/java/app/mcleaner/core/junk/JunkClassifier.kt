@@ -13,9 +13,19 @@ data class JunkItem(val path: String, val sizeBytes: Long, val category: JunkCat
 object JunkClassifier {
     private val logSuffix = Regex("""\.log(\.\d+)?$""")
 
-    fun classify(path: String, isDirectory: Boolean, isEmptyDir: Boolean): JunkCategory? {
+    /** Standard folders at the storage root: apps (camera, music, downloads) expect them, even when empty. */
+    private val standardRootDirs = setOf(
+        "alarms", "audiobooks", "dcim", "documents", "download", "movies", "music", "notifications",
+        "pictures", "podcasts", "recordings", "ringtones", "screenshots",
+    )
+
+    /** [topLevel]: the item sits directly in the storage root. */
+    fun classify(path: String, isDirectory: Boolean, isEmptyDir: Boolean, topLevel: Boolean = false): JunkCategory? {
         val p = path.replace('\\', '/').trimEnd('/')
         if ("/Android/obb/" in "$p/") return null
+        // MCleaner's own kept versions and data.
+        if ("/MCleaner/" in "$p/" || "/Android/data/app.mcleaner/" in "$p/") return null
+        if (isDirectory && topLevel && p.substringAfterLast('/').lowercase() in standardRootDirs) return null
         if (isDirectory) {
             // Android/, Android/data, Android/media look empty to apps on Android 11 but are system dirs.
             if (p.endsWith("/Android") || p.substringBeforeLast('/').endsWith("/Android")) return null

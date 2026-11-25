@@ -71,6 +71,8 @@ if ! $start_only; then
   if [[ "$(dsh getprop ro.build.version.sdk)" -ge 30 ]]; then
     dsh appops set "$APP" MANAGE_EXTERNAL_STORAGE allow
   else
+    # Android 9/10: без READ приложение не видит общую память, одного WRITE мало.
+    dsh pm grant "$APP" android.permission.READ_EXTERNAL_STORAGE || true
     dsh pm grant "$APP" android.permission.WRITE_EXTERNAL_STORAGE || true
   fi
   # Не даём системе «экономить батарею» на автоускорении.

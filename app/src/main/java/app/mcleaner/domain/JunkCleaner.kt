@@ -17,7 +17,11 @@ class JunkCleaner(private val privileged: Privileged, private val scanner: JunkS
     suspend fun scan(whitelist: Set<String>): List<JunkItem> = withContext(Dispatchers.IO) {
         val root = Environment.getExternalStorageDirectory()
         val found = scanner.scan(root).toMutableList()
-        if (privileged.isAvailable) found += appDataCaches(root).filter { AppCacheFilter.allowed(it.path, whitelist) }
+        if (privileged.isAvailable) {
+            val seen = found.mapTo(HashSet()) { it.path }
+            // An empty cache dir is already listed as an empty folder: list each path once.
+            found += appDataCaches(root).filter { AppCacheFilter.allowed(it.path, whitelist) && it.path !in seen }
+        }
         found
     }
 

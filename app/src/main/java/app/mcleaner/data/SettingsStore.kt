@@ -81,6 +81,7 @@ class SettingsStore(private val context: Context) {
             "com.uma.musicvk",
             "moe.shizuku.privileged.api",
             "com.shilapi.xcertplay",
+            "com.shihab.diplay", // DiPlay geely-fixes build
         )
         private val WHITELIST = stringSetPreferencesKey("whitelist")
         private val AUTO_BOOST = booleanPreferencesKey("auto_boost")

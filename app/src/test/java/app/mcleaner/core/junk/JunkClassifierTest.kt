@@ -70,4 +70,21 @@ class JunkClassifierTest {
         assertNull(file("/sdcard/Android/obb/com.game/patch.tmp"))
         assertNull(JunkClassifier.classify("/sdcard/Android/obb/com.game", isDirectory = true, isEmptyDir = true))
     }
+
+    @Test
+    fun ownUpdatesAndAppFolder_neverJunk() {
+        assertNull(file("/storage/emulated/0/MCleaner/updates/MCleaner-1.1.0.apk"))
+        assertNull(file("/storage/emulated/0/Android/data/app.mcleaner/files/update/MCleaner-1.2.0.apk"))
+        assertNull(JunkClassifier.classify("/storage/emulated/0/MCleaner/updates", isDirectory = true, isEmptyDir = true))
+    }
+
+    @Test
+    fun standardTopLevelFolders_notEmptyDirJunk() {
+        listOf("DCIM", "Alarms", "Music", "Download", "Pictures", "Movies", "Notifications", "Podcasts", "Ringtones", "Documents").forEach {
+            assertNull(it, JunkClassifier.classify("/storage/emulated/0/$it", isDirectory = true, isEmptyDir = true, topLevel = true))
+        }
+        // Same name deeper down is an ordinary empty folder.
+        assertEquals(JunkCategory.EMPTY_DIRS, JunkClassifier.classify("/storage/emulated/0/old/Music", isDirectory = true, isEmptyDir = true))
+        assertEquals(JunkCategory.EMPTY_DIRS, JunkClassifier.classify("/storage/emulated/0/emptydir", isDirectory = true, isEmptyDir = true, topLevel = true))
+    }
 }
