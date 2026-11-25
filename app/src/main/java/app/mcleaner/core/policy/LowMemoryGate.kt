@@ -29,6 +29,6 @@ object LowMemoryGate {
         return lastAlertMs == null || lastAlertMs > nowMs || nowMs - lastAlertMs >= COOLDOWN_MS
     }
 
-    /** The foreground service watches wake-ups (auto-boost) and memory (alert). */
-    fun serviceNeeded(autoBoost: Boolean, lowMemoryAlert: Boolean) = autoBoost || lowMemoryAlert
+    /** The foreground service keeps MCleaner running and watches wake-ups (auto-boost, Shizuku) and memory (alert). */
+    fun serviceNeeded(autoBoost: Boolean, lowMemoryAlert: Boolean, keepRunning: Boolean) = keepRunning || autoBoost || lowMemoryAlert
 }

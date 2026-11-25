@@ -19,6 +19,13 @@ object Formatters {
 
     fun kb(kb: Long): String = bytes(kb * 1024)
 
+    /** CPU load: «0%», «2,5%», «12%». */
+    fun percent(p: Double): String = when {
+        p <= 0.0 -> "0%"
+        p < 10 -> String.format(java.util.Locale.ROOT, "%.1f", p).replace(".", tr(",", ".")).removeSuffix(tr(",0", ".0")) + "%"
+        else -> "${p.toInt()}%"
+    }
+
     fun usedOfTotal(usedBytes: Long, totalBytes: Long): String =
         "${gigs(usedBytes.coerceAtLeast(0))} / ${gigs(totalBytes.coerceAtLeast(0))} ${tr("ГБ", "GB")}"
 

@@ -68,7 +68,7 @@ class AppContainer(context: Context) {
     /** Start/stop the background service and the periodic boost to match the settings. */
     suspend fun syncBackgroundWork() {
         val s = settings.current()
-        if (LowMemoryGate.serviceNeeded(s.autoBoost, s.lowMemoryAlert)) WakeWatchService.start(appContext) else WakeWatchService.stop(appContext)
+        if (LowMemoryGate.serviceNeeded(s.autoBoost, s.lowMemoryAlert, s.keepRunning)) WakeWatchService.start(appContext) else WakeWatchService.stop(appContext)
         AutoBoostScheduler.schedulePeriodic(appContext, s.scheduleMinutes)
     }
 

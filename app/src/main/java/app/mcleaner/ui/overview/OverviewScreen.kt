@@ -58,6 +58,8 @@ fun OverviewScreen() {
     val full = shizuku == ShizukuState.READY
     var showHistory by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     if (showHistory) HistoryDialog(app.mcleaner.ui.common.container().history) { showHistory = false }
+    var byCache by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { vm.refresh() }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -107,22 +109,35 @@ fun OverviewScreen() {
             )
         }
 
-        Row(Modifier.fillMaxWidth().height(220.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 220.dp).height(androidx.compose.foundation.layout.IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(
                 Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(12.dp))
                     .background(MaterialTheme.colorScheme.surface).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text(tr("Больше всего памяти", "Top memory users"), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
-                if (!full) {
-                    Text(tr("Доступно в полном режиме", "Available in full mode"), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                } else if (ui.topApps.isEmpty()) {
-                    Text(tr("Загрузка…", "Loading…"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        if (byCache) tr("Больше всего кэша", "Largest cache") else tr("Больше всего памяти", "Top memory users"),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 16.sp,
+                        modifier = Modifier.weight(1f),
+                    )
+                    androidx.compose.material3.FilterChip(!byCache, { byCache = false }, { Text(tr("Память", "Memory")) }, Modifier.heightIn(min = 40.dp))
+                    androidx.compose.material3.FilterChip(byCache, { byCache = true }, { Text(tr("Кэш", "Cache")) }, Modifier.heightIn(min = 40.dp))
                 }
-                ui.topApps.forEach { app ->
+                val list = if (byCache) ui.topCache else ui.topApps
+                when {
+                    !byCache && !full -> Text(tr("Доступно в полном режиме", "Available in full mode"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    !ui.loaded -> Text(tr("Загрузка…", "Loading…"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    list.isEmpty() -> Text(
+                        if (byCache) tr("Кэша нет или нет доступа к статистике", "No cache or no usage access") else tr("Нет данных", "No data"),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                list.forEach { app ->
                     Row(Modifier.fillMaxWidth()) {
                         Text(app.label, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(Formatters.kb(app.pssKb ?: 0))
+                        Text(if (byCache) Formatters.bytes(app.cacheBytes ?: 0) else Formatters.kb(app.pssKb ?: 0))
                     }
                 }
             }

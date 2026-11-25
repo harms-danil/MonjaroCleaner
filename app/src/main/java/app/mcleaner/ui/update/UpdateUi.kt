@@ -136,31 +136,30 @@ fun UpdateSection(updates: UpdateManager) {
         is UpdateState.Failed -> s.message
     }
     val hasUpdate = state is UpdateState.Available || state is UpdateState.NeedsPermission || state is UpdateState.Failed
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Column(Modifier.weight(1f)) {
-            Text(tr("Версия ${updates.currentVersion}", "Version ${updates.currentVersion}"), style = MaterialTheme.typography.titleMedium)
-            status?.let {
-                Text(
-                    it,
-                    color = if (state is UpdateState.CheckFailed || state is UpdateState.Failed) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(tr("Версия ${updates.currentVersion}", "Version ${updates.currentVersion}"), style = MaterialTheme.typography.titleMedium)
+        status?.let {
+            Text(
+                it,
+                color = if (state is UpdateState.CheckFailed || state is UpdateState.Failed) MaterialTheme.colorScheme.error
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button(
+                onClick = updates::manualCheck,
+                enabled = state !is UpdateState.Checking && state !is UpdateState.Downloading && state !is UpdateState.Installing,
+                modifier = Modifier.heightIn(min = MinTouch),
+            ) { Text(tr("Проверить обновления", "Check for updates")) }
+            if (hasUpdate) {
+                Button(onClick = updates::showDialog, modifier = Modifier.heightIn(min = MinTouch)) { Text(tr("Обновить", "Update")) }
             }
+            OutlinedButton(onClick = { showVersions = true }, modifier = Modifier.heightIn(min = MinTouch)) { Text(tr("Другие версии", "Other versions")) }
+            TextButton(onClick = { showLicenses = true }, modifier = Modifier.heightIn(min = MinTouch)) { Text(tr("Лицензии", "Licenses")) }
         }
-        if (hasUpdate) {
-            Button(onClick = updates::showDialog, modifier = Modifier.heightIn(min = MinTouch)) { Text(tr("Обновить", "Update")) }
-        }
-        TextButton(onClick = { showLicenses = true }, modifier = Modifier.heightIn(min = MinTouch)) { Text(tr("Лицензии", "Licenses")) }
-        OutlinedButton(onClick = { showVersions = true }, modifier = Modifier.heightIn(min = MinTouch)) { Text(tr("Другие версии", "Other versions")) }
-        OutlinedButton(
-            onClick = updates::manualCheck,
-            enabled = state !is UpdateState.Checking && state !is UpdateState.Downloading && state !is UpdateState.Installing,
-            modifier = Modifier.heightIn(min = MinTouch),
-        ) { Text(tr("Проверить обновления", "Check for updates")) }
     }
 }
 
-/** «Другие версии»: downloaded ones and everything on GitHub; older ones roll back (Shizuku only). */
 @Composable
 private fun VersionsDialog(updates: UpdateManager, onDismiss: () -> Unit) {
     val versions by updates.versions.collectAsStateWithLifecycle()

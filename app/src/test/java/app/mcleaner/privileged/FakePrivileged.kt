@@ -11,6 +11,7 @@ class FakePrivileged(
 ) : Privileged {
     val calls = mutableListOf<String>()
     val deleteCacheCalls = mutableListOf<Pair<String, Int>>()
+    val removedTasks = mutableListOf<String>()
 
     override val isAvailable: Boolean get() = available
 
@@ -34,5 +35,11 @@ class FakePrivileged(
         if (!tick()) return false
         deleteCacheCalls += packageName to userId
         return deleteCacheResult(packageName)
+    }
+
+    override suspend fun removeTasks(packageNames: Collection<String>, userId: Int): Int {
+        if (!available) return 0
+        removedTasks += packageNames
+        return packageNames.size
     }
 }

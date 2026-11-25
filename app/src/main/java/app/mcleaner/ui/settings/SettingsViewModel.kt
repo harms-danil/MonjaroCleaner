@@ -64,6 +64,13 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
 
     fun requestPermission() = c.shizuku.requestPermission()
 
+    fun setKeepRunning(on: Boolean) {
+        viewModelScope.launch {
+            c.settings.setKeepRunning(on)
+            c.syncBackgroundWork()
+        }
+    }
+
     fun setAutoBoost(on: Boolean) {
         viewModelScope.launch {
             c.settings.setAutoBoost(on)

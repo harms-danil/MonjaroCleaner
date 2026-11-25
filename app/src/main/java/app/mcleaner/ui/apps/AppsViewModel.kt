@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
-enum class AppSort { MEMORY, CACHE }
+enum class AppSort { MEMORY, CPU, CACHE }
 
 data class AppsUi(
     val loading: Boolean = true,
@@ -39,6 +39,7 @@ data class AppsUi(
             .sortedWith(
                 when (sort) {
                     AppSort.MEMORY -> compareByDescending<AppInfo> { it.pssKb ?: -1L }.thenByDescending { it.cacheBytes ?: -1L }
+                    AppSort.CPU -> compareByDescending<AppInfo> { it.cpuPercent ?: -1.0 }.thenByDescending { it.pssKb ?: -1L }
                     AppSort.CACHE -> compareByDescending<AppInfo> { it.cacheBytes ?: -1L }.thenByDescending { it.pssKb ?: -1L }
                 },
             )
@@ -62,13 +63,27 @@ class AppsViewModel(private val c: AppContainer) : ViewModel() {
 
     val hasUsageAccess: Boolean get() = c.apps.hasUsageAccess()
 
+    private var loadedAt = 0L
+    private var loadJob: kotlinx.coroutines.Job? = null
+
     fun reload() {
+        if (loadJob?.isActive == true) return
         _ui.value = _ui.value.copy(loading = true)
-        viewModelScope.launch {
-            val apps = c.apps.loadApps()
-            val protected = c.apps.freezeProtectedPackages()
-            _ui.value = _ui.value.copy(loading = false, apps = apps, freezeProtected = protected)
+        loadJob = viewModelScope.launch {
+            try {
+                val apps = c.apps.loadApps()
+                val protected = c.apps.freezeProtectedPackages()
+                _ui.value = _ui.value.copy(apps = apps, freezeProtected = protected)
+                loadedAt = android.os.SystemClock.elapsedRealtime()
+            } finally {
+                _ui.value = _ui.value.copy(loading = false)
+            }
         }
+    }
+
+    /** On return to the screen: skip if the list was loaded a moment ago (first show, quick tab switches). */
+    fun reloadIfStale() {
+        if (android.os.SystemClock.elapsedRealtime() - loadedAt > STALE_MS) reload()
     }
 
     fun setSort(sort: AppSort) {
@@ -91,7 +106,9 @@ class AppsViewModel(private val c: AppContainer) : ViewModel() {
     fun canStop(app: AppInfo): Boolean = BoostPolicy.canStopManually(app, selfPackage)
 
     fun stop(app: AppInfo) = act(tr("${app.label}: остановлено", "${app.label}: stopped"), tr("${app.label}: не удалось остановить", "${app.label}: could not stop")) {
-        c.shizuku.exec("am force-stop ${shellQuote(app.packageName)}").ok
+        c.shizuku.exec("am force-stop ${shellQuote(app.packageName)}").ok.also { ok ->
+            if (ok) c.shizuku.removeTasks(listOf(app.packageName), c.apps.currentUser())
+        }
     }
 
     /**
@@ -111,7 +128,7 @@ class AppsViewModel(private val c: AppContainer) : ViewModel() {
                 )
                 openSystemPage()
             }
-            _ui.value = _ui.value.copy(apps = c.apps.loadApps())
+            reload()
         }
     }
 
@@ -138,10 +155,11 @@ class AppsViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch {
             val success = runCatching { block() }.getOrDefault(false)
             _ui.value = _ui.value.copy(message = if (success) ok else fail)
-            if (success) {
-                val apps = c.apps.loadApps()
-                _ui.value = _ui.value.copy(apps = apps)
-            }
+            if (success) reload()
         }
+    }
+
+    private companion object {
+        const val STALE_MS = 3_000L
     }
 }

@@ -9,4 +9,7 @@ interface IShellService {
 
     /** Deletes the cache of one package for one user. False when the platform refused. */
     boolean deleteCache(String packageName, int userId) = 2;
+
+    /** Removes the given packages' tasks from Recents (the system «running apps» screen). Returns how many. */
+    int removeTasks(in String[] packageNames, int userId) = 3;
 }

@@ -72,16 +72,20 @@ fun AppsScreen() {
         }
     }
     LaunchedEffect(full) { vm.reload() }
+    // Back from the system app page (where the internal cache is cleared): show fresh numbers.
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { vm.reloadIfStale() }
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(ui.sort == AppSort.MEMORY, { vm.setSort(AppSort.MEMORY) }, { Text(tr("По памяти", "By memory")) }, Modifier.heightIn(min = 48.dp))
+                FilterChip(ui.sort == AppSort.CPU, { vm.setSort(AppSort.CPU) }, { Text(tr("По процессору", "By CPU")) }, Modifier.heightIn(min = 48.dp), enabled = full)
                 FilterChip(ui.sort == AppSort.CACHE, { vm.setSort(AppSort.CACHE) }, { Text(tr("По кэшу", "By cache")) }, Modifier.heightIn(min = 48.dp))
                 FilterChip(ui.onlyRunning, { vm.setOnlyRunning(!ui.onlyRunning) }, { Text(tr("Только работающие", "Running only")) }, Modifier.heightIn(min = 48.dp), enabled = full)
                 Spacer(Modifier.weight(1f))
-                IconButton(onClick = vm::reload, modifier = Modifier.size(MinTouch)) {
-                    Icon(Icons.Outlined.Refresh, contentDescription = tr("Обновить", "Refresh"))
+                IconButton(onClick = vm::reload, enabled = !ui.loading, modifier = Modifier.size(MinTouch)) {
+                    if (ui.loading) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 3.dp)
+                    else Icon(Icons.Outlined.Refresh, contentDescription = tr("Обновить", "Refresh"))
                 }
             }
             if (!vm.hasUsageAccess && !full) {
@@ -93,13 +97,17 @@ fun AppsScreen() {
                 Spacer(Modifier.width(52.dp))
                 Header(tr("Приложение", "App"), Modifier.weight(1f))
                 Header(tr("ОЗУ", "RAM"), Modifier.width(100.dp))
+                Header(tr("ЦП", "CPU"), Modifier.width(80.dp))
                 Header(tr("Кэш", "Cache"), Modifier.width(100.dp))
                 Spacer(Modifier.width(150.dp))
             }
             if (ui.loading && ui.apps.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             } else {
-                LazyColumn(Modifier.fillMaxSize()) {
+                val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+                // Keyed rows keep the first visible app in place; after a re-sort the leaders must be in view.
+                LaunchedEffect(ui.sort, ui.onlyRunning) { listState.scrollToItem(0) }
+                LazyColumn(Modifier.fillMaxSize(), state = listState) {
                     items(ui.visible, key = { it.packageName }) { app ->
                         AppRow(
                             app = app,
@@ -173,6 +181,7 @@ private fun AppRow(
             if (app.isFrozen) Badge(tr("заморожено", "frozen"), BadgeKind.INFO)
         }
         Text(app.pssKb?.let(Formatters::kb) ?: "—", Modifier.width(100.dp))
+        Text(app.cpuPercent?.let(Formatters::percent) ?: "—", Modifier.width(80.dp))
         Text(app.cacheBytes?.let(Formatters::bytes) ?: "—", Modifier.width(100.dp))
         OutlinedButton(onClick = onAction, modifier = Modifier.width(150.dp).heightIn(min = 48.dp)) {
             Text(actionLabel, fontSize = 15.sp, maxLines = 1)

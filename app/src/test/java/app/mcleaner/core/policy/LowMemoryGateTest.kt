@@ -66,9 +66,10 @@ class LowMemoryGateTest {
     }
 
     @Test
-    fun `service is needed for wake watching or the memory alert`() {
-        assertTrue(LowMemoryGate.serviceNeeded(autoBoost = true, lowMemoryAlert = false))
-        assertTrue(LowMemoryGate.serviceNeeded(autoBoost = false, lowMemoryAlert = true))
-        assertFalse(LowMemoryGate.serviceNeeded(autoBoost = false, lowMemoryAlert = false))
+    fun `service is needed for background work, wake watching or the memory alert`() {
+        assertTrue(LowMemoryGate.serviceNeeded(autoBoost = true, lowMemoryAlert = false, keepRunning = false))
+        assertTrue(LowMemoryGate.serviceNeeded(autoBoost = false, lowMemoryAlert = true, keepRunning = false))
+        assertTrue(LowMemoryGate.serviceNeeded(autoBoost = false, lowMemoryAlert = false, keepRunning = true))
+        assertFalse(LowMemoryGate.serviceNeeded(autoBoost = false, lowMemoryAlert = false, keepRunning = false))
     }
 }

@@ -65,7 +65,7 @@ class WakeWatchService : Service() {
         val c = (application as MCleanerApp).container
         scope.launch {
             c.settings.settings.distinctUntilChanged().collect { s ->
-                if (!LowMemoryGate.serviceNeeded(s.autoBoost, s.lowMemoryAlert)) {
+                if (!LowMemoryGate.serviceNeeded(s.autoBoost, s.lowMemoryAlert, s.keepRunning)) {
                     stopSelf()
                     return@collect
                 }
@@ -110,19 +110,31 @@ class WakeWatchService : Service() {
         runCatching { getSystemService(NotificationManager::class.java).notify(LOW_MEMORY_NOTIFICATION_ID, n) }
     }
 
-    private fun ongoing(s: Settings?) = NotificationCompat.Builder(this, MCleanerApp.CHANNEL_WATCH)
+    private fun ongoing(s: Settings?): android.app.Notification {
+        val open = PendingIntent.getActivity(
+            this, 2, Intent(this, app.mcleaner.MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val boost = PendingIntent.getActivity(
+            this, 3, BoostShortcutActivity.intent(this, BoostSource.SHORTCUT),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val features = listOfNotNull(
+            if (s?.autoBoost == true) tr("автоускорение", "auto-boost") else null,
+            if (s?.lowMemoryAlert == true) tr("слежение за памятью", "memory watch") else null,
+            if (s?.shizukuAutostart == true) tr("автозапуск Shizuku", "Shizuku autostart") else null,
+        )
+        return NotificationCompat.Builder(this, MCleanerApp.CHANNEL_WATCH)
         .setSmallIcon(R.drawable.ic_notification)
         .setContentTitle(tr("MCleaner работает в фоне", "MCleaner is running in the background"))
-        .setContentText(
-            listOfNotNull(
-                if (s == null || s.autoBoost) tr("автоускорение", "auto-boost") else null,
-                if (s?.lowMemoryAlert == true) tr("слежение за памятью", "memory watch") else null,
-            ).joinToString(", ").replaceFirstChar(Char::uppercase),
-        )
+        .setContentText(features.joinToString(", ").replaceFirstChar(Char::uppercase).ifEmpty { tr("Нажмите, чтобы открыть", "Tap to open") })
+        .setContentIntent(open)
+        .addAction(R.drawable.ic_notification, tr("Ускорить", "Boost"), boost)
         .setOngoing(true)
         .setSilent(true)
         .setPriority(NotificationCompat.PRIORITY_MIN)
         .build()
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
 

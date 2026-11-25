@@ -35,7 +35,11 @@ class ShizukuInstaller(private val context: Context) {
 
     /** Returns false when MCleaner first needs the «install unknown apps» permission (screen opened). */
     suspend fun install(): Boolean {
+        // One install at a time: a second session for the same package fails in the system installer
+        // with «App not installed» even though the first one succeeds.
+        if (!_busy.compareAndSet(expect = false, update = true)) return false
         if (!context.packageManager.canRequestPackageInstalls()) {
+            _busy.value = false
             _message.value = tr(
                 "Разрешите MCleaner устанавливать приложения, вернитесь и нажмите «Установить Shizuku» ещё раз.",
                 "Allow MCleaner to install apps, come back and tap Install Shizuku again.",
@@ -56,7 +60,6 @@ class ShizukuInstaller(private val context: Context) {
             }
             return false
         }
-        _busy.value = true
         return try {
             withContext(Dispatchers.IO) { commitSession() }
             true
@@ -88,12 +91,13 @@ class ShizukuInstaller(private val context: Context) {
 
     internal fun onResult(status: Int, message: String?) {
         _busy.value = false
-        _message.value = when (status) {
-            PackageInstaller.STATUS_SUCCESS -> tr(
+        val installed = runCatching { context.packageManager.getPackageInfo(SHIZUKU_PACKAGE, 0) }.isSuccess
+        _message.value = when {
+            status == PackageInstaller.STATUS_SUCCESS || (installed && status != PackageInstaller.STATUS_FAILURE_ABORTED) -> tr(
                 "Shizuku установлен. Теперь его нужно запустить — шаг 3 или 4 инструкции.",
                 "Shizuku installed. Now it needs to be started — step 3 or 4 of the guide.",
             )
-            PackageInstaller.STATUS_FAILURE_ABORTED -> tr("Установка Shizuku отменена", "Shizuku installation cancelled")
+            status == PackageInstaller.STATUS_FAILURE_ABORTED -> tr("Установка Shizuku отменена", "Shizuku installation cancelled")
             else -> tr("Не удалось установить Shizuku: ${message ?: status}", "Could not install Shizuku: ${message ?: status}")
         }
     }
@@ -107,9 +111,17 @@ class ShizukuInstaller(private val context: Context) {
 
 /** System installer callbacks for [ShizukuInstaller]. */
 class ShizukuInstallReceiver : BroadcastReceiver() {
+    private companion object {
+        /** Sessions whose confirmation screen was already shown (per process). */
+        val confirmed: MutableSet<Int> = java.util.Collections.synchronizedSet(mutableSetOf())
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
         if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+            // Some firmwares deliver this twice: a second confirmation screen would end in «App not installed».
+            val session = intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1)
+            if (!confirmed.add(session)) return
             val confirm = if (Build.VERSION.SDK_INT >= 33) {
                 intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
             } else {

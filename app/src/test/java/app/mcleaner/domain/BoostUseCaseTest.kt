@@ -59,6 +59,13 @@ class BoostUseCaseTest {
     }
 
     @Test
+    fun fullMode_removesStoppedAppsFromRecents() = runTest {
+        val fake = FakePrivileged()
+        useCase(fake, listOf(app("ru.yandex.yandexnavi"), app("com.example.game"))).run()
+        assertEquals(listOf("com.example.game"), fake.removedTasks)
+    }
+
+    @Test
     fun shizukuDiesMidway_reportsFailures() = runTest {
         val fake = FakePrivileged(dieAfterCalls = 1)
         val apps = listOf(app("com.a"), app("com.b"), app("com.c"))

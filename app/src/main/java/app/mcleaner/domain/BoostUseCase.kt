@@ -52,6 +52,8 @@ class BoostUseCase(
                     failed += pkg
                 }
             }
+            // Force-stop leaves the cards in the system's running-apps screen: drop them too.
+            if (stoppedPackages.isNotEmpty()) privileged.removeTasks(stoppedPackages, currentUser())
             if (clearCache && privileged.isAvailable) {
                 val inUse = ctx.busyPackages + setOfNotNull(ctx.foregroundPackage, ctx.launcherPackage, ctx.imePackage)
                 val targets = BoostPolicy.cacheTargets(apps, ctx.whitelist, inUse)

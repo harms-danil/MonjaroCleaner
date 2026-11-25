@@ -11,6 +11,9 @@ interface Privileged {
     val isAvailable: Boolean
     suspend fun exec(command: String): ShellResult
     suspend fun deleteCache(packageName: String, userId: Int): Boolean
+
+    /** Removes these packages' tasks from Recents, so a stopped app no longer shows as running. */
+    suspend fun removeTasks(packageNames: Collection<String>, userId: Int): Int = 0
 }
 
 object NoPrivileged : Privileged {

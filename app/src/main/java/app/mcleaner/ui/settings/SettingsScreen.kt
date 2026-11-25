@@ -37,7 +37,6 @@ import app.mcleaner.ui.common.MinTouch
 import app.mcleaner.ui.common.containerViewModel
 import app.mcleaner.ui.common.title
 import app.mcleaner.ui.common.container
-import app.mcleaner.ui.update.UpdateSection
 
 @Composable
 fun SettingsScreen() {
@@ -84,6 +83,15 @@ fun SettingsScreen() {
             Section { AppearanceSection(container().ui) }
             Section {
                 SwitchRow(
+                    title = tr("Работать в фоне и запускаться с магнитолой", "Run in the background and start with the head unit"),
+                    subtitle = tr(
+                        "MCleaner стартует после включения магнитолы и остаётся в памяти (значок в шторке): так работают автоускорение, предупреждение о памяти и автозапуск Shizuku после сна. В шторке есть кнопка «Ускорить».",
+                        "MCleaner starts when the head unit turns on and stays in memory (icon in the notification shade): this keeps auto-boost, the memory warning and Shizuku autostart after sleep working. The notification has a Boost button.",
+                    ),
+                    checked = settings?.keepRunning != false,
+                    onChange = vm::setKeepRunning,
+                )
+                SwitchRow(
                     title = tr("Автоускорение", "Auto-boost"),
                     subtitle = tr("После загрузки (через 90 с) и пробуждения магнитолы (через 30 с), не чаще раза в 10 минут. Работает, только если Shizuku запущен.", "After boot (in 90 s) and head unit wake-up (in 30 s), at most once every 10 minutes. Works only while Shizuku is running."),
                     checked = settings?.autoBoost == true,
@@ -119,7 +127,6 @@ fun SettingsScreen() {
                 }
             }
             Section { BackupSection(vm) }
-            Section { UpdateSection(container().updates) }
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }

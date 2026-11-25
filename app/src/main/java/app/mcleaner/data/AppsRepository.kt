@@ -13,7 +13,9 @@ import android.os.Process
 import android.provider.Settings
 import app.mcleaner.core.model.AppInfo
 import app.mcleaner.core.parse.DumpsysMeminfoParser
+import app.mcleaner.core.parse.CpuInfoParser
 import app.mcleaner.core.parse.DumpsysStateParsers
+import app.mcleaner.core.parse.ExternalCacheParser
 import app.mcleaner.core.policy.InstalledApp
 import app.mcleaner.core.policy.ProtectedPackages
 import app.mcleaner.privileged.Privileged
@@ -47,6 +49,18 @@ class AppsRepository(private val context: Context, private val privileged: Privi
         } else {
             null
         }
+        val external: Map<String, Long> = if (privileged.isAvailable) {
+            val root = Environment.getExternalStorageDirectory().path
+            ExternalCacheParser.parse(privileged.exec("du -sk ${shellQuote(root)}/Android/data/*/cache 2>/dev/null").out)
+        } else {
+            emptyMap()
+        }
+        val cpu: Map<String, Double>? = if (privileged.isAvailable) {
+            val r = privileged.exec("dumpsys cpuinfo")
+            if (r.ok) CpuInfoParser.perPackage(r.out, packages) else null
+        } else {
+            null
+        }
         val stats = context.getSystemService(StorageStatsManager::class.java)
         val user = Process.myUserHandle()
         val canStats = hasUsageAccess()
@@ -62,8 +76,9 @@ class AppsRepository(private val context: Context, private val privileged: Privi
                 isSystem = ai.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0,
                 isRunning = pss?.containsKey(ai.packageName) ?: false,
                 pssKb = pss?.get(ai.packageName),
-                cacheBytes = cache,
+                cacheBytes = ExternalCacheParser.combine(cache, external[ai.packageName]),
                 isFrozen = !ai.enabled,
+                cpuPercent = cpu?.let { it[ai.packageName] ?: 0.0 },
             )
         }
     }

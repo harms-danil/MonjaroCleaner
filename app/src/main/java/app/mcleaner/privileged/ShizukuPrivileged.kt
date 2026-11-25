@@ -12,6 +12,7 @@ import app.mcleaner.core.model.ShellResult
 import app.mcleaner.core.policy.BoostPolicy
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import app.mcleaner.core.policy.RecentTasks
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -104,6 +105,27 @@ class ShizukuPrivileged(private val context: Context) : Privileged {
                 false
             }
         }
+    }
+
+    override suspend fun removeTasks(packageNames: Collection<String>, userId: Int): Int {
+        if (packageNames.isEmpty()) return 0
+        val s = awaitService() ?: return 0
+        val viaBinder = withContext(Dispatchers.IO) {
+            try {
+                s.removeTasks(packageNames.toTypedArray(), userId)
+            } catch (t: Throwable) {
+                dropService()
+                refresh()
+                return@withContext -1
+            }
+        }
+        if (viaBinder != 0) return viaBinder.coerceAtLeast(0)
+        // Android 9: shell has no REMOVE_TASKS (binder returns 0), but may remove stacks.
+        val stopped = packageNames.toSet()
+        val orphans = RecentTasks.orphansToRestore(RecentTasks.parseRecents(exec("dumpsys activity recents").out), stopped)
+        orphans.forEach { exec("am stack move-task $it ${RecentTasks.NO_SUCH_STACK} true") }
+        val stacks = RecentTasks.stacksToRemove(RecentTasks.parseStacks(exec("am stack list").out), stopped)
+        return stacks.count { exec("am stack remove $it").ok }
     }
 
     private suspend fun awaitService(): IShellService? {

@@ -3,6 +3,13 @@ package app.mcleaner.ui
 import app.mcleaner.core.i18n.tr
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,13 +19,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Apps
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.CleaningServices
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.mcleaner.privileged.ShizukuState
+import app.mcleaner.ui.about.AboutScreen
 import app.mcleaner.ui.apps.AppsScreen
 import app.mcleaner.ui.cleanup.CleanupScreen
 import app.mcleaner.ui.common.FullModeBanner
@@ -44,9 +51,10 @@ import app.mcleaner.ui.update.UpdateDialog
 
 private enum class Tab(private val ru: String, private val en: String, val icon: ImageVector) {
     OVERVIEW("Обзор", "Overview", Icons.Outlined.Speed),
-    APPS("Прилож.", "Apps", Icons.Outlined.Apps),
+    APPS("Приложения", "Apps", Icons.Outlined.Apps),
     CLEANUP("Очистка", "Cleanup", Icons.Outlined.CleaningServices),
-    SETTINGS("Настр.", "Settings", Icons.Outlined.Settings),
+    SETTINGS("Настройки", "Settings", Icons.Outlined.Settings),
+    ABOUT("О программе", "About", Icons.Outlined.Info),
     ;
     val title: String get() = tr(ru, en)
 }
@@ -72,23 +80,9 @@ fun MainScreen() {
     }
 
     Row(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        NavigationRail(
-            modifier = Modifier.fillMaxHeight(),
-            containerColor = MaterialTheme.colorScheme.surface,
-        ) {
-            Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Tab.entries.forEachIndexed { i, t ->
-                    NavigationRailItem(
-                        selected = tab == i,
-                        onClick = { tab = i },
-                        icon = { Icon(t.icon, contentDescription = t.title) },
-                        label = { Text(t.title, fontSize = 14.sp) },
-                    )
-                }
-            }
-        }
+        SideMenu(selected = tab, onSelect = { tab = it })
         Column(Modifier.weight(1f).fillMaxHeight().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (shizuku != ShizukuState.READY && tab != Tab.SETTINGS.ordinal) {
+            if (shizuku != ShizukuState.READY && tab != Tab.SETTINGS.ordinal && tab != Tab.ABOUT.ordinal) {
                 FullModeBanner(shizuku) { tab = Tab.SETTINGS.ordinal }
             }
             Box(Modifier.weight(1f)) {
@@ -97,9 +91,39 @@ fun MainScreen() {
                     Tab.APPS -> AppsScreen()
                     Tab.CLEANUP -> CleanupScreen()
                     Tab.SETTINGS -> SettingsScreen()
+                    Tab.ABOUT -> AboutScreen()
                 }
             }
         }
     }
     UpdateDialog(c.updates)
+}
+
+/** Wide side menu with icon and full label, like the head unit's own settings. */
+@Composable
+private fun SideMenu(selected: Int, onSelect: (Int) -> Unit) {
+    Column(
+        Modifier.fillMaxHeight().width(220.dp).padding(start = 12.dp, top = 12.dp, bottom = 12.dp)
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Tab.entries.forEachIndexed { i, t ->
+            val active = i == selected
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 56.dp)
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                    .background(if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else androidx.compose.ui.graphics.Color.Transparent)
+                    .selectable(selected = active, onClick = { onSelect(i) }, role = androidx.compose.ui.semantics.Role.Tab)
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                val tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                Icon(t.icon, contentDescription = null, tint = tint, modifier = Modifier.size(26.dp))
+                Text(t.title, color = tint, fontSize = 17.sp, maxLines = 1)
+            }
+        }
+    }
 }

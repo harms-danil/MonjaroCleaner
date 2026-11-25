@@ -92,6 +92,14 @@ class SettingsBackupTest {
         assertEquals(0, d.scheduleMinutes)
         assertFalse(d.lowMemoryAlert)
         assertEquals(15, d.lowMemoryPercent)
+        // Added in 1.6.0: background work is on unless a file says otherwise.
+        assertTrue(d.keepRunning)
+    }
+
+    @Test
+    fun `background work setting survives a round trip`() {
+        val data = BackupData(setOf("a.b"), emptySet(), autoBoost = false, stopGoogle = false, keepRunning = false)
+        assertEquals(data, SettingsBackup.decode(SettingsBackup.encode(data)))
     }
 
     @Test

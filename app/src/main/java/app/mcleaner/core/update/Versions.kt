@@ -58,6 +58,8 @@ data class BackupData(
     val lowMemoryAlert: Boolean = false,
     val lowMemoryPercent: Int = 15,
     val shizukuAutostart: Boolean = false,
+    /** Added in 1.6.0: run in the background and start with the head unit. Older files read as on. */
+    val keepRunning: Boolean = true,
 )
 
 object SettingsBackup {
@@ -76,6 +78,7 @@ object SettingsBackup {
         .put("lowMemoryAlert", d.lowMemoryAlert)
         .put("lowMemoryPercent", d.lowMemoryPercent)
         .put("shizukuAutostart", d.shizukuAutostart)
+        .put("keepRunning", d.keepRunning)
         .toString(2)
 
     fun decode(text: String): BackupData? = try {
@@ -92,6 +95,7 @@ object SettingsBackup {
                 lowMemoryAlert = o.optBoolean("lowMemoryAlert", false),
                 lowMemoryPercent = o.optInt("lowMemoryPercent", 15).coerceIn(5, 50),
                 shizukuAutostart = o.optBoolean("shizukuAutostart", false),
+                keepRunning = o.optBoolean("keepRunning", true),
             )
         }
     } catch (_: JSONException) {

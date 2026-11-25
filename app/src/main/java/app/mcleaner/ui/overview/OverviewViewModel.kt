@@ -20,6 +20,8 @@ import kotlinx.coroutines.launch
 
 data class OverviewUi(
     val topApps: List<AppInfo> = emptyList(),
+    val topCache: List<AppInfo> = emptyList(),
+    val loaded: Boolean = false,
     val candidates: Int = 0,
     val boosting: Boolean = false,
     val report: BoostReport? = null,
@@ -41,8 +43,17 @@ class OverviewViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch { shizuku.collect { refresh() } }
     }
 
+    private var refreshJob: kotlinx.coroutines.Job? = null
+    private var refreshAgain = false
+
+    /** One load at a time: requests during a load (Shizuku state, screen resume) collapse into one more. */
     fun refresh() {
-        viewModelScope.launch {
+        if (refreshJob?.isActive == true) {
+            refreshAgain = true
+            return
+        }
+        refreshAgain = false
+        refreshJob = viewModelScope.launch {
             val apps = c.apps.loadApps()
             val ctx = c.boostContext()
             val candidates = if (c.shizuku.isAvailable) {
@@ -50,9 +61,10 @@ class OverviewViewModel(private val c: AppContainer) : ViewModel() {
             } else {
                 BoostPolicy.blindKillCandidates(apps, ctx).size
             }
-            val top = apps.filter { it.pssKb != null }.sortedByDescending { it.pssKb }.take(3)
-            _ui.value = _ui.value.copy(topApps = top, candidates = candidates)
-        }
+            val top = apps.filter { it.pssKb != null }.sortedByDescending { it.pssKb }.take(TOP)
+            val topCache = apps.filter { (it.cacheBytes ?: 0) > 0 }.sortedByDescending { it.cacheBytes }.take(TOP)
+            _ui.value = _ui.value.copy(topApps = top, topCache = topCache, candidates = candidates, loaded = true)
+        }.also { job -> job.invokeOnCompletion { if (refreshAgain) viewModelScope.launch { refresh() } } }
     }
 
     fun boost() {
@@ -80,5 +92,9 @@ class OverviewViewModel(private val c: AppContainer) : ViewModel() {
 
     fun dismissReport() {
         _ui.value = _ui.value.copy(report = null)
+    }
+
+    private companion object {
+        const val TOP = 8
     }
 }

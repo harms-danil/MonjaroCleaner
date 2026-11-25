@@ -20,4 +20,6 @@ data class AppInfo(
     val pssKb: Long?,
     val cacheBytes: Long?,
     val isFrozen: Boolean,
+    /** Average CPU % over the last minute or two (full mode only). */
+    val cpuPercent: Double? = null,
 )
