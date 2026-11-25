@@ -27,9 +27,13 @@ object AdbStart {
         if ("shizuku_starter exit with 0" in output || "shizuku_server pid is" in output) AdbStartResult.Started
         else AdbStartResult.Failed(output.trim().takeLast(300))
 
-    fun fromError(e: Throwable): AdbStartResult = when (e) {
-        is ConnectException -> AdbStartResult.NoNetworkAdb
-        is SocketTimeoutException -> AdbStartResult.NotAuthorized
-        else -> AdbStartResult.Failed(e.message ?: e.javaClass.simpleName)
+    /** dadb wraps socket errors (e.g. AdbConnectException("Failed to connect…", ConnectException)): look at the causes. */
+    fun fromError(e: Throwable): AdbStartResult {
+        val chain = generateSequence(e) { it.cause }.take(8).toList()
+        return when {
+            chain.any { it is ConnectException } -> AdbStartResult.NoNetworkAdb
+            chain.any { it is SocketTimeoutException } -> AdbStartResult.NotAuthorized
+            else -> AdbStartResult.Failed(e.message ?: e.javaClass.simpleName)
+        }
     }
 }

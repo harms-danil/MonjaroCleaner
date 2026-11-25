@@ -29,4 +29,11 @@ class AdbStartTest {
         assertEquals(AdbStartResult.NotAuthorized, AdbStart.fromError(SocketTimeoutException("Read timed out")))
         assertEquals(AdbStartResult.Failed("boom"), AdbStart.fromError(IOException("boom")))
     }
+
+    @Test
+    fun `errors wrapped by the adb client are unwrapped`() {
+        val wrapped = IOException("Failed to connect to 127.0.0.1:5555", ConnectException("Connection refused"))
+        assertEquals(AdbStartResult.NoNetworkAdb, AdbStart.fromError(wrapped))
+        assertEquals(AdbStartResult.NotAuthorized, AdbStart.fromError(RuntimeException("x", SocketTimeoutException("t"))))
+    }
 }
