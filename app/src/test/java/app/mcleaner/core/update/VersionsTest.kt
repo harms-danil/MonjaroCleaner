@@ -55,12 +55,13 @@ class VersionCatalogTest {
 class ReleaseListTest {
     @Test
     fun `parses all usable releases from the list endpoint`() {
+        val sha = "\\n- SHA-256: `${"a".repeat(64)}`"
         val json = """[
-            {"tag_name":"v1.1.0","draft":false,"prerelease":false,"body":"x",
+            {"tag_name":"v1.1.0","draft":false,"prerelease":false,"body":"x$sha",
              "assets":[{"name":"MCleaner-1.1.0.apk","size":5,"browser_download_url":"https://github.com/$UPDATE_REPO/releases/download/v1.1.0/MCleaner-1.1.0.apk"}]},
-            {"tag_name":"v1.0.5","draft":true,"prerelease":false,"body":"",
+            {"tag_name":"v1.0.5","draft":true,"prerelease":false,"body":"x$sha",
              "assets":[{"name":"MCleaner-1.0.5.apk","size":5,"browser_download_url":"https://github.com/$UPDATE_REPO/releases/download/v1.0.5/MCleaner-1.0.5.apk"}]},
-            {"tag_name":"v1.0.0","draft":false,"prerelease":false,"body":"",
+            {"tag_name":"v1.0.0","draft":false,"prerelease":false,"body":"x$sha",
              "assets":[{"name":"MCleaner-1.0.0.apk","size":7,"browser_download_url":"https://github.com/$UPDATE_REPO/releases/download/v1.0.0/MCleaner-1.0.0.apk"}]}
         ]"""
         assertEquals(listOf("1.1.0", "1.0.0"), ReleaseParser.parseList(json).map { it.version })

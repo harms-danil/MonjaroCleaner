@@ -56,7 +56,8 @@ fun UpdateDialog(updates: UpdateManager) {
     val busy = state is UpdateState.Downloading || state is UpdateState.Installing
 
     AlertDialog(
-        onDismissRequest = { if (!busy) updates.later() },
+        // «Позже» only hides the window: a download or install keeps going (and has its own timeout).
+        onDismissRequest = updates::later,
         title = { Text(if (rollback) tr("Установка версии ${release.version}", "Installing version ${release.version}") else tr("Доступно обновление ${release.version}", "Update available: ${release.version}")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -110,7 +111,7 @@ fun UpdateDialog(updates: UpdateManager) {
             }
         },
         dismissButton = {
-            TextButton(onClick = updates::later, enabled = !busy, modifier = Modifier.heightIn(min = MinTouch)) { Text(tr("Позже", "Later")) }
+            TextButton(onClick = updates::later, modifier = Modifier.heightIn(min = MinTouch)) { Text(tr("Позже", "Later")) }
         },
     )
 }
@@ -193,10 +194,18 @@ private fun VersionsDialog(updates: UpdateManager, onDismiss: () -> Unit) {
                                         if (e.onDevice) Badge(tr("на устройстве", "on device"), BadgeKind.INFO)
                                         if (e.release != null) Badge("GitHub", BadgeKind.NEUTRAL)
                                     }
+                                    if (!e.installable) {
+                                        Text(
+                                            tr("Не ставится: до ${VersionCatalog.MIN_INSTALLABLE} не умеет обновляться на Android 9",
+                                                "Not offered: before ${VersionCatalog.MIN_INSTALLABLE} it cannot update itself on Android 9"),
+                                            fontSize = 13.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
                                 }
                                 OutlinedButton(
                                     onClick = { if (e.newer) { updates.installVersion(e); onDismiss() } else confirm = e },
-                                    enabled = e.newer || updates.canRollback,
+                                    enabled = e.installable && (e.newer || updates.canRollback),
                                     modifier = Modifier.heightIn(min = MinTouch),
                                 ) { Text(tr("Установить", "Install")) }
                             }
