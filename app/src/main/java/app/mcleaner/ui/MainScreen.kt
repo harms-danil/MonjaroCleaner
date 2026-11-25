@@ -33,7 +33,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.mcleaner.auto.WakeWatchService
 import app.mcleaner.privileged.ShizukuState
 import app.mcleaner.ui.apps.AppsScreen
 import app.mcleaner.ui.cleanup.CleanupScreen
@@ -97,9 +96,7 @@ fun MainScreen() {
                     Tab.OVERVIEW -> OverviewScreen()
                     Tab.APPS -> AppsScreen()
                     Tab.CLEANUP -> CleanupScreen()
-                    Tab.SETTINGS -> SettingsScreen(onAutoBoostChanged = { on ->
-                        if (on) WakeWatchService.start(context) else WakeWatchService.stop(context)
-                    })
+                    Tab.SETTINGS -> SettingsScreen()
                 }
             }
         }

@@ -90,10 +90,10 @@ fi
 # --- запуск Shizuku ----------------------------------------------------
 [[ "$(dsh pm path "$SHIZUKU")" == *package:* ]] || die "Shizuku не установлен. Запустите скрипт без --start-only."
 
-if shizuku_running; then
-  ok "Shizuku уже запущен"
-else
-  say "Запускаю Shizuku"
+# Всегда перезапускаем: процесс shizuku_server может остаться после сбоя системы, но уже без связи с ней.
+# Стартер Shizuku сам завершает старый процесс.
+{
+  if shizuku_running; then say "Перезапускаю Shizuku"; else say "Запускаю Shizuku"; fi
   apk_dir="$(dirname "$(dsh pm path "$SHIZUKU" | head -1 | cut -d: -f2)")"
   starter=""
   for abi in arm64 arm; do
@@ -112,7 +112,7 @@ else
   sleep 2
   shizuku_running || die "Shizuku не запустился. Откройте Shizuku на магнитоле и посмотрите команду в «Запуск через подключение к компьютеру»."
   ok "Shizuku запущен"
-fi
+}
 
 # --- финал -------------------------------------------------------------
 dsh am start -n "$APP/.MainActivity" >/dev/null 2>&1 || true

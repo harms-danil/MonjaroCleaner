@@ -18,8 +18,8 @@ class BootReceiver : BroadcastReceiver() {
             try {
                 if (app.container.settings.current().autoBoost) {
                     AutoBoostScheduler.schedule(context, AutoBoostGate.BOOT_DELAY_MS)
-                    WakeWatchService.start(context)
                 }
+                app.container.syncBackgroundWork()
             } finally {
                 pending.finish()
             }

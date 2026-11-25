@@ -16,4 +16,20 @@ class LangTest {
         Lang.current = Language.EN
         assertEquals("Overview", tr("Обзор", "Overview"))
     }
+
+    @Test
+    fun `russian plural forms`() {
+        fun f(n: Long) = ruPlural(n, "ускорение", "ускорения", "ускорений")
+        assertEquals("ускорение", f(1))
+        assertEquals("ускорения", f(3))
+        assertEquals("ускорений", f(5))
+        assertEquals("ускорений", f(11))
+        assertEquals("ускорений", f(14))
+        assertEquals("ускорение", f(21))
+        assertEquals("ускорения", f(22))
+        assertEquals("ускорений", f(0))
+        assertEquals("1 ускорение", count(1, "ускорение", "ускорения", "ускорений", "boost", "boosts"))
+        Lang.current = Language.EN
+        assertEquals("2 boosts", count(2, "ускорение", "ускорения", "ускорений", "boost", "boosts"))
+    }
 }

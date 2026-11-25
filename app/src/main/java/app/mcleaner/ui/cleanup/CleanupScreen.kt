@@ -196,9 +196,24 @@ fun CleanupScreen() {
     if (ui.askTrimAll) {
         AlertDialog(
             onDismissRequest = vm::dismissTrimAll,
-            title = { Text(tr("Поштучная очистка недоступна", "Per-app cleanup unavailable")) },
-            text = { Text(tr("Прошивка не даёт чистить кэш по одному приложению. Очистить кэш всех приложений, включая навигатор и музыку? Офлайн-карты могут скачаться заново.", "The firmware does not allow clearing cache per app. Clear the cache of all apps, including navigator and music? Offline maps may need to be downloaded again.")) },
-            confirmButton = { TextButton(onClick = vm::confirmTrimAll) { Text(tr("Очистить всё", "Clear all")) } },
+            title = { Text(tr("Внутренний кэш — только целиком", "Internal cache — all or nothing")) },
+            text = {
+                val ext = ui.externalCleared
+                Text(
+                    (if (ext != null) tr(
+                        "Внешний кэш очищен поштучно, без белого списка: ${ext.apps} прилож., ${Formatters.bytes(ext.bytes)}.\n\n",
+                        "External cache cleared per app, whitelist kept: ${ext.apps} apps, ${Formatters.bytes(ext.bytes)}.\n\n",
+                    ) else "") + tr(
+                        "Внутренний кэш по одному приложению Android 8+ разрешает чистить только системе (нужно разрешение прошивки, у ADB и Shizuku его нет). " +
+                            "Можно очистить внутренний кэш всех приложений сразу — включая навигатор и музыку, офлайн-карты могут скачаться заново. " +
+                            "Или очистить кэш отдельного приложения в его системной карточке: «Хранилище» → «Очистить кэш».",
+                        "Android 8+ lets only the system clear one app's internal cache (a firmware permission ADB and Shizuku don't have). " +
+                            "You can clear the internal cache of all apps at once — including navigator and music, offline maps may need re-downloading. " +
+                            "Or clear a single app's cache in its system page: Storage → Clear cache.",
+                    ),
+                )
+            },
+            confirmButton = { TextButton(onClick = vm::confirmTrimAll) { Text(tr("Очистить внутренний у всех", "Clear internal for all")) } },
             dismissButton = { OutlinedButton(onClick = vm::dismissTrimAll) { Text(tr("Отмена", "Cancel")) } },
         )
     }
@@ -206,7 +221,7 @@ fun CleanupScreen() {
         AlertDialog(
             onDismissRequest = vm::dismissDelete,
             title = { Text(tr("Удалить файлы?", "Delete files?")) },
-            text = { Text(tr("Удалить ${ui.selectedItems.size} файлов, ${Formatters.bytes(ui.selectedBytes)}? Это нельзя отменить.", "Delete ${ui.selectedItems.size} files, ${Formatters.bytes(ui.selectedBytes)}? This cannot be undone.")) },
+            text = { Text(tr("Удалить ${app.mcleaner.core.i18n.count(ui.selectedItems.size, "файл", "файла", "файлов", "file", "files")}, ${Formatters.bytes(ui.selectedBytes)}? Это нельзя отменить.", "Delete ${app.mcleaner.core.i18n.count(ui.selectedItems.size, "файл", "файла", "файлов", "file", "files")}, ${Formatters.bytes(ui.selectedBytes)}? This cannot be undone.")) },
             confirmButton = { TextButton(onClick = vm::delete) { Text(tr("Удалить", "Delete")) } },
             dismissButton = { OutlinedButton(onClick = vm::dismissDelete) { Text(tr("Отмена", "Cancel")) } },
         )

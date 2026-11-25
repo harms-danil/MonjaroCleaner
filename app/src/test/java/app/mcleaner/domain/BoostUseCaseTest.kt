@@ -53,7 +53,7 @@ class BoostUseCaseTest {
         assertTrue("am force-stop com.example.game" in fake.calls)
         assertTrue(fake.calls.none { "yandexnavi" in it })
         assertEquals(listOf("com.example.game" to 0), fake.deleteCacheCalls)
-        assertEquals(BoostReport(fullMode = true, stopped = 1, failed = emptyList(), freedRamKb = 2000, freedCacheBytes = 400, protectionUnavailable = false), report)
+        assertEquals(BoostReport(fullMode = true, stopped = 1, failed = emptyList(), freedRamKb = 2000, freedCacheBytes = 400, protectionUnavailable = false, stoppedPackages = listOf("com.example.game")), report)
     }
 
     @Test

@@ -87,6 +87,16 @@ class SettingsBackupTest {
         assertEquals(setOf("a.b"), d.whitelist)
         assertEquals(emptySet<String>(), d.frozen)
         assertFalse(d.autoBoost)
+        // Fields added in 1.4.0 default to "off" / standard threshold for older files.
+        assertEquals(0, d.scheduleMinutes)
+        assertFalse(d.lowMemoryAlert)
+        assertEquals(15, d.lowMemoryPercent)
+    }
+
+    @Test
+    fun `schedule and memory alert survive a round trip`() {
+        val data = BackupData(setOf("a"), emptySet(), autoBoost = false, stopGoogle = true, scheduleMinutes = 30, lowMemoryAlert = true, lowMemoryPercent = 20)
+        assertEquals(data, SettingsBackup.decode(SettingsBackup.encode(data)))
     }
 }
 

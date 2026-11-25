@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -18,8 +19,15 @@ data class Settings(
     val stopGoogle: Boolean,
     val frozen: Set<String>,
     val lastAutoBoostMs: Long?,
+    /** Boost every N minutes while the head unit is on; 0 = off. */
+    val scheduleMinutes: Int = 0,
+    val lowMemoryAlert: Boolean = false,
+    val lowMemoryPercent: Int = 15,
 ) {
-    fun toBackup() = BackupData(whitelist = whitelist, frozen = frozen, autoBoost = autoBoost, stopGoogle = stopGoogle)
+    fun toBackup() = BackupData(
+        whitelist = whitelist, frozen = frozen, autoBoost = autoBoost, stopGoogle = stopGoogle,
+        scheduleMinutes = scheduleMinutes, lowMemoryAlert = lowMemoryAlert, lowMemoryPercent = lowMemoryPercent,
+    )
 }
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
@@ -41,6 +49,26 @@ class SettingsStore(private val context: Context) {
 
     suspend fun setStopGoogle(on: Boolean) = context.dataStore.edit { it[STOP_GOOGLE] = on }
 
+    suspend fun setScheduleMinutes(minutes: Int) = context.dataStore.edit { it[SCHEDULE_MIN] = minutes }
+
+    suspend fun setLowMemoryAlert(on: Boolean) = context.dataStore.edit { it[LOW_MEM] = on }
+
+    suspend fun setLowMemoryPercent(percent: Int) = context.dataStore.edit { it[LOW_MEM_PCT] = percent }
+
+    /**
+     * Import from a file (another car or an older export). The frozen list is not applied:
+     * it describes which apps are disabled on that particular head unit.
+     */
+    suspend fun applyImport(d: BackupData) = context.dataStore.edit { p ->
+        p[WHITELIST] = d.whitelist
+        p[AUTO_BOOST] = d.autoBoost
+        p[STOP_GOOGLE] = d.stopGoogle
+        p[SCHEDULE_MIN] = d.scheduleMinutes
+        p[LOW_MEM] = d.lowMemoryAlert
+        p[LOW_MEM_PCT] = d.lowMemoryPercent
+        p[INITIALIZED] = true
+    }
+
     suspend fun addFrozen(pkg: String) = context.dataStore.edit { it[FROZEN] = (it[FROZEN] ?: emptySet()) + pkg }
 
     suspend fun removeFrozen(pkg: String) = context.dataStore.edit { it[FROZEN] = (it[FROZEN] ?: emptySet()) - pkg }
@@ -56,6 +84,9 @@ class SettingsStore(private val context: Context) {
             p[FROZEN] = backup.frozen
             p[AUTO_BOOST] = backup.autoBoost
             p[STOP_GOOGLE] = backup.stopGoogle
+            p[SCHEDULE_MIN] = backup.scheduleMinutes
+            p[LOW_MEM] = backup.lowMemoryAlert
+            p[LOW_MEM_PCT] = backup.lowMemoryPercent
         }
         p[INITIALIZED] = true
     }
@@ -68,6 +99,9 @@ class SettingsStore(private val context: Context) {
         stopGoogle = this[STOP_GOOGLE] ?: false,
         frozen = this[FROZEN] ?: emptySet(),
         lastAutoBoostMs = this[LAST_AUTO],
+        scheduleMinutes = this[SCHEDULE_MIN] ?: 0,
+        lowMemoryAlert = this[LOW_MEM] ?: false,
+        lowMemoryPercent = this[LOW_MEM_PCT] ?: 15,
     )
 
     companion object {
@@ -89,5 +123,8 @@ class SettingsStore(private val context: Context) {
         private val FROZEN = stringSetPreferencesKey("frozen")
         private val LAST_AUTO = longPreferencesKey("last_auto_boost")
         private val INITIALIZED = booleanPreferencesKey("initialized")
+        private val SCHEDULE_MIN = intPreferencesKey("schedule_minutes")
+        private val LOW_MEM = booleanPreferencesKey("low_memory_alert")
+        private val LOW_MEM_PCT = intPreferencesKey("low_memory_percent")
     }
 }

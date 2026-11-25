@@ -22,6 +22,7 @@ class MCleanerApp : Application() {
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel(CHANNEL_RESULT, tr("Результат автоускорения", "Auto-boost result"), NotificationManager.IMPORTANCE_LOW))
         nm.createNotificationChannel(NotificationChannel(CHANNEL_WATCH, tr("Слежение за пробуждением", "Wake watching"), NotificationManager.IMPORTANCE_MIN))
+        nm.createNotificationChannel(NotificationChannel(CHANNEL_ALERT, tr("Мало памяти", "Low memory"), NotificationManager.IMPORTANCE_DEFAULT))
 
         // Settings backup in /sdcard/MCleaner: restore on first run, then rewrite on every change.
         val c = container
@@ -36,5 +37,6 @@ class MCleanerApp : Application() {
     companion object {
         const val CHANNEL_RESULT = "auto_boost_result"
         const val CHANNEL_WATCH = "wake_watch"
+        const val CHANNEL_ALERT = "low_memory"
     }
 }

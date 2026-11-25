@@ -110,7 +110,7 @@ fun AppsScreen() {
                                 when {
                                     !full -> SystemScreens.appDetails(context, app.packageName)
                                     app.isRunning && vm.canStop(app) -> vm.stop(app)
-                                    else -> vm.clearCache(app)
+                                    else -> vm.clearCache(app) { SystemScreens.appDetails(context, app.packageName) }
                                 }
                             },
                             onClick = { selected = app },
@@ -132,7 +132,7 @@ fun AppsScreen() {
             canFreeze = vm.canFreeze(app),
             onDismiss = { selected = null },
             onStop = { vm.stop(app) },
-            onClearCache = { vm.clearCache(app) },
+            onClearCache = { vm.clearCache(app) { SystemScreens.appDetails(context, app.packageName) } },
             onFreeze = { vm.freeze(app) },
             onUnfreeze = { vm.unfreeze(app) },
             onWhitelist = { vm.setWhitelisted(app, it) },

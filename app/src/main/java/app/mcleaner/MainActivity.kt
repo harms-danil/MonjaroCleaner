@@ -9,7 +9,6 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import app.mcleaner.auto.WakeWatchService
 import app.mcleaner.ui.MainScreen
 import app.mcleaner.ui.theme.MCleanerTheme
 import app.mcleaner.ui.theme.isDarkTheme
@@ -21,7 +20,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val container = (application as MCleanerApp).container
         lifecycleScope.launch {
-            if (container.settings.current().autoBoost) WakeWatchService.start(this@MainActivity)
+            container.syncBackgroundWork()
         }
         // Once per launch (not on rotation or language change): silent, retries while offline.
         if (savedInstanceState == null) container.updates.autoCheck()

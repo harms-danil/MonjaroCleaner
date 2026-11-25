@@ -4,7 +4,19 @@ import android.app.ActivityManager
 import android.content.Context
 import app.mcleaner.core.junk.JunkScanner
 import app.mcleaner.core.policy.BoostContext
+import app.mcleaner.auto.AutoBoostScheduler
+import app.mcleaner.auto.WakeWatchService
+import app.mcleaner.core.history.BoostRecord
+import app.mcleaner.core.history.BoostSource
+import app.mcleaner.core.policy.LowMemoryGate
 import app.mcleaner.data.AppsRepository
+import app.mcleaner.data.HistoryStore
+import app.mcleaner.domain.BoostReport
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import app.mcleaner.data.MCleanerFolder
 import app.mcleaner.data.SettingsStore
 import app.mcleaner.data.SystemStatsRepository
@@ -29,6 +41,34 @@ class AppContainer(context: Context) {
     val junkCleaner = JunkCleaner(shizuku, JunkScanner())
     val folder = MCleanerFolder(appContext, apps::hasAllFilesAccess)
     val updates = UpdateManager(appContext, shizuku, folder)
+    val history = HistoryStore(appContext)
+
+    /** Outlives activities: boosts started from the home-screen icon, widget or notification. */
+    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    private val boostLock = Mutex()
+
+    /** Every boost goes through here so that it lands in the history. One at a time. */
+    suspend fun runBoost(source: BoostSource): BoostReport = boostLock.withLock {
+        val report = boost.run()
+        history.add(
+            BoostRecord(
+                timeMs = System.currentTimeMillis(),
+                source = source,
+                freedRamKb = report.freedRamKb,
+                freedCacheBytes = report.freedCacheBytes,
+                stopped = report.stoppedPackages,
+            ),
+        )
+        report
+    }
+
+    /** Start/stop the background service and the periodic boost to match the settings. */
+    suspend fun syncBackgroundWork() {
+        val s = settings.current()
+        if (LowMemoryGate.serviceNeeded(s.autoBoost, s.lowMemoryAlert)) WakeWatchService.start(appContext) else WakeWatchService.stop(appContext)
+        AutoBoostScheduler.schedulePeriodic(appContext, s.scheduleMinutes)
+    }
 
     /**
      * Restores settings from `/sdcard/MCleaner/settings.json` on the first run of an install.
@@ -61,6 +101,7 @@ class AppContainer(context: Context) {
         },
         cacheCleaner = cacheCleaner,
         currentUser = apps::currentUser,
+        externalRoot = android.os.Environment.getExternalStorageDirectory().path,
     )
 
     suspend fun boostContext(): BoostContext {

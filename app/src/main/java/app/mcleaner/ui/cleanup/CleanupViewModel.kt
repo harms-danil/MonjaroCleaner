@@ -20,6 +20,8 @@ data class CleanupUi(
     /** Selected file paths. */
     val selected: Set<String> = emptySet(),
     val askTrimAll: Boolean = false,
+    /** Per-app external cache cleared before asking about the internal one. */
+    val externalCleared: app.mcleaner.domain.ExternalCacheResult? = null,
     val confirmDelete: Boolean = false,
     val message: String? = null,
 ) {
@@ -38,13 +40,15 @@ class CleanupViewModel(private val c: AppContainer) : ViewModel() {
         val before = c.apps.totalCacheBytes()
         val apps = c.apps.loadApps()
         val whitelist = c.settings.current().whitelist
-        val result = c.cacheCleaner.clearMany(BoostPolicy.cacheTargets(apps, whitelist), c.apps.currentUser())
+        val targets = BoostPolicy.cacheTargets(apps, whitelist)
+        val result = c.cacheCleaner.clearMany(targets, c.apps.currentUser())
         if (result.perPackageUnsupported) {
-            _ui.value = _ui.value.copy(askTrimAll = true)
+            val ext = c.cacheCleaner.clearExternal(targets, android.os.Environment.getExternalStorageDirectory().path)
+            _ui.value = _ui.value.copy(askTrimAll = true, externalCleared = ext)
         } else {
             val freed = (before - c.apps.totalCacheBytes()).coerceAtLeast(0)
             _ui.value = _ui.value.copy(
-                message = tr("Кэш очищен у ${result.cleared} приложений", "Cache cleared for ${result.cleared} apps") +
+                message = tr("Кэш очищен: ${app.mcleaner.core.i18n.count(result.cleared, "приложение", "приложения", "приложений", "app", "apps")}", "Cache cleared: ${app.mcleaner.core.i18n.count(result.cleared, "приложение", "приложения", "приложений", "app", "apps")}") +
                     if (freed > 0) tr(", освобождено ${app.mcleaner.ui.common.Formatters.bytes(freed)}", ", freed ${app.mcleaner.ui.common.Formatters.bytes(freed)}") else "",
             )
         }

@@ -40,9 +40,8 @@ import app.mcleaner.ui.common.container
 import app.mcleaner.ui.update.UpdateSection
 
 @Composable
-fun SettingsScreen(onAutoBoostChanged: (Boolean) -> Unit = {}) {
+fun SettingsScreen() {
     val vm = containerViewModel { SettingsViewModel(it) }
-    vm.onAutoBoostChanged = onAutoBoostChanged
     val settings by vm.settings.collectAsStateWithLifecycle()
     val shizuku by vm.shizuku.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
@@ -93,6 +92,7 @@ fun SettingsScreen(onAutoBoostChanged: (Boolean) -> Unit = {}) {
                     checked = settings?.stopGoogle == true,
                     onChange = vm::setStopGoogle,
                 )
+                AutomationRows(settings, full, vm)
             }
             Section {
                 WhitelistSection(
@@ -115,6 +115,7 @@ fun SettingsScreen(onAutoBoostChanged: (Boolean) -> Unit = {}) {
                     ) { Text(tr("Разморозить всё", "Unfreeze all")) }
                 }
             }
+            Section { BackupSection(vm) }
             Section { UpdateSection(container().updates) }
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))

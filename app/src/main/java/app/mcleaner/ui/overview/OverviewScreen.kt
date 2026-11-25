@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,6 +56,8 @@ fun OverviewScreen() {
     val ui by vm.ui.collectAsStateWithLifecycle()
     val shizuku by vm.shizuku.collectAsStateWithLifecycle()
     val full = shizuku == ShizukuState.READY
+    var showHistory by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    if (showHistory) HistoryDialog(app.mcleaner.ui.common.container().history) { showHistory = false }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -142,11 +146,18 @@ fun OverviewScreen() {
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    if (full) tr("Завершит ${ui.candidates} фоновых приложений и очистит кэш", "Will stop ${ui.candidates} background apps and clear cache") else tr("Попросит систему выгрузить фоновые приложения", "Will ask the system to unload background apps"),
+                    if (full) tr(
+                        "Завершит ${app.mcleaner.core.i18n.count(ui.candidates, "фоновое приложение", "фоновых приложения", "фоновых приложений", "background app", "background apps")} и очистит кэш",
+                        "Will stop ${app.mcleaner.core.i18n.count(ui.candidates, "фоновое приложение", "фоновых приложения", "фоновых приложений", "background app", "background apps")} and clear cache",
+                    ) else tr("Попросит систему выгрузить фоновые приложения", "Will ask the system to unload background apps"),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     fontSize = 16.sp,
                 )
+                androidx.compose.material3.TextButton(
+                    onClick = { showHistory = true },
+                    modifier = Modifier.heightIn(min = app.mcleaner.ui.common.MinTouch),
+                ) { Text(tr("История", "History")) }
             }
         }
     }

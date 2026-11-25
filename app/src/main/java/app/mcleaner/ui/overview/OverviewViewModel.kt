@@ -3,6 +3,7 @@ package app.mcleaner.ui.overview
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.mcleaner.AppContainer
+import app.mcleaner.core.history.BoostSource
 import app.mcleaner.core.model.AppInfo
 import app.mcleaner.core.policy.BoostPolicy
 import app.mcleaner.data.SystemStats
@@ -55,7 +56,8 @@ class OverviewViewModel(private val c: AppContainer) : ViewModel() {
         if (_ui.value.boosting) return
         _ui.value = _ui.value.copy(boosting = true)
         viewModelScope.launch {
-            val report = c.boost.run()
+            val report = c.runBoost(BoostSource.MANUAL)
+            app.mcleaner.auto.BoostWidget.refresh(c.appContext, report)
             _ui.value = _ui.value.copy(boosting = false, report = report)
             refresh()
         }

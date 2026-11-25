@@ -42,8 +42,17 @@ object VersionCatalog {
     }
 }
 
-/** What survives a reinstall: `/sdcard/MCleaner/settings.json`. */
-data class BackupData(val whitelist: Set<String>, val frozen: Set<String>, val autoBoost: Boolean, val stopGoogle: Boolean)
+/** What survives a reinstall (`/sdcard/MCleaner/settings.json`) and what export/import carries. */
+data class BackupData(
+    val whitelist: Set<String>,
+    val frozen: Set<String>,
+    val autoBoost: Boolean,
+    val stopGoogle: Boolean,
+    /** 0 = off. Added in 1.4.0, older files read as off. */
+    val scheduleMinutes: Int = 0,
+    val lowMemoryAlert: Boolean = false,
+    val lowMemoryPercent: Int = 15,
+)
 
 object SettingsBackup {
     private const val FORMAT = 1
@@ -54,6 +63,9 @@ object SettingsBackup {
         .put("frozen", JSONArray(d.frozen.sorted()))
         .put("autoBoost", d.autoBoost)
         .put("stopGoogle", d.stopGoogle)
+        .put("scheduleMinutes", d.scheduleMinutes)
+        .put("lowMemoryAlert", d.lowMemoryAlert)
+        .put("lowMemoryPercent", d.lowMemoryPercent)
         .toString(2)
 
     fun decode(text: String): BackupData? = try {
@@ -66,6 +78,9 @@ object SettingsBackup {
                 frozen = o.strings("frozen"),
                 autoBoost = o.optBoolean("autoBoost", false),
                 stopGoogle = o.optBoolean("stopGoogle", false),
+                scheduleMinutes = o.optInt("scheduleMinutes", 0).coerceIn(0, 24 * 60),
+                lowMemoryAlert = o.optBoolean("lowMemoryAlert", false),
+                lowMemoryPercent = o.optInt("lowMemoryPercent", 15).coerceIn(5, 50),
             )
         }
     } catch (_: JSONException) {

@@ -28,7 +28,7 @@
 - С ноутбука по ADB:
 
   ```bash
-  adb install -r MCleaner-1.3.0.apk
+  adb install -r MCleaner-1.4.0.apk
   ```
 
 - Или с флешки: скопируйте APK и откройте его файловым менеджером на магнитоле.

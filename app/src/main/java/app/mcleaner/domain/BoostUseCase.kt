@@ -12,6 +12,8 @@ data class BoostReport(
     val freedRamKb: Long,
     val freedCacheBytes: Long,
     val protectionUnavailable: Boolean = false,
+    /** Force-stopped packages (full mode), for the history. */
+    val stoppedPackages: List<String> = emptyList(),
 )
 
 class BoostUseCase(
@@ -24,6 +26,8 @@ class BoostUseCase(
     private val cacheCleaner: CacheCleaner,
     private val currentUser: suspend () -> Int,
     private val delayMs: suspend (Long) -> Unit = { kotlinx.coroutines.delay(it) },
+    /** Shared storage root for the per-app external cache fallback. */
+    private val externalRoot: String = "/storage/emulated/0",
 ) {
     suspend fun run(): BoostReport {
         val ramBefore = readFreeRamKb()
@@ -34,12 +38,21 @@ class BoostUseCase(
 
         var stopped = 0
         val failed = mutableListOf<String>()
+        val stoppedPackages = mutableListOf<String>()
         if (full) {
             for (pkg in BoostPolicy.killCandidates(apps, ctx)) {
-                if (privileged.exec("am force-stop $pkg").ok) stopped++ else failed += pkg
+                if (privileged.exec("am force-stop $pkg").ok) {
+                    stopped++
+                    stoppedPackages += pkg
+                } else {
+                    failed += pkg
+                }
             }
             if (privileged.isAvailable) {
-                cacheCleaner.clearMany(BoostPolicy.cacheTargets(apps, ctx.whitelist), currentUser())
+                val targets = BoostPolicy.cacheTargets(apps, ctx.whitelist)
+                val r = cacheCleaner.clearMany(targets, currentUser())
+                // Android 8+ refuses per-app internal cache to non-system callers: clear what is allowed.
+                if (r.perPackageUnsupported) cacheCleaner.clearExternal(targets, externalRoot)
             }
         } else {
             for (pkg in BoostPolicy.blindKillCandidates(apps, ctx)) {
@@ -55,6 +68,7 @@ class BoostUseCase(
             freedRamKb = (readFreeRamKb() - ramBefore).coerceAtLeast(0),
             freedCacheBytes = (cacheBefore - totalCacheBytes()).coerceAtLeast(0),
             protectionUnavailable = full && !ctx.busyKnown,
+            stoppedPackages = stoppedPackages,
         )
     }
 

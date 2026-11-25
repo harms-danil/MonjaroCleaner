@@ -16,6 +16,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import android.net.Uri
+import app.mcleaner.core.update.BackupData
+import app.mcleaner.core.update.SettingsBackup
 
 class SettingsViewModel(private val c: AppContainer) : ViewModel() {
     val settings: StateFlow<Settings?> = c.settings.settings.stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -25,8 +30,6 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
-    /** Hook for Task 9: starts/stops the wake watcher. */
-    var onAutoBoostChanged: (Boolean) -> Unit = {}
 
     private val installed = MutableStateFlow<List<InstalledApp>>(emptyList())
     val selfPackage: String = c.appContext.packageName
@@ -64,8 +67,83 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
     fun setAutoBoost(on: Boolean) {
         viewModelScope.launch {
             c.settings.setAutoBoost(on)
-            onAutoBoostChanged(on)
+            c.syncBackgroundWork()
         }
+    }
+
+    fun setScheduleMinutes(minutes: Int) {
+        viewModelScope.launch {
+            c.settings.setScheduleMinutes(minutes)
+            c.syncBackgroundWork()
+        }
+    }
+
+    fun setLowMemoryAlert(on: Boolean) {
+        viewModelScope.launch {
+            c.settings.setLowMemoryAlert(on)
+            c.syncBackgroundWork()
+        }
+    }
+
+    fun setLowMemoryPercent(percent: Int) {
+        viewModelScope.launch { c.settings.setLowMemoryPercent(percent) }
+    }
+
+    // --- export / import (a flash drive via the system file picker) ---------------------------
+
+    /** Parsed file waiting for «Импортировать?» confirmation. */
+    private val _pendingImport = MutableStateFlow<BackupData?>(null)
+    val pendingImport: StateFlow<BackupData?> = _pendingImport.asStateFlow()
+
+    fun exportTo(uri: Uri) {
+        viewModelScope.launch {
+            val text = SettingsBackup.encode(c.settings.current().toBackup())
+            val ok = withContext(Dispatchers.IO) {
+                runCatching { c.appContext.contentResolver.openOutputStream(uri, "wt")!!.use { it.write(text.toByteArray()) } }.isSuccess
+            }
+            _message.value = if (ok) tr("Настройки сохранены в файл", "Settings saved to file") else tr("Не удалось записать файл", "Could not write the file")
+        }
+    }
+
+    /** No system file picker on the head unit: save into /sdcard/MCleaner/export instead. */
+    fun exportToFolder() {
+        viewModelScope.launch {
+            val text = SettingsBackup.encode(c.settings.current().toBackup())
+            val path = withContext(Dispatchers.IO) { c.folder.writeExport(text) }
+            _message.value = path?.let { tr("Сохранено: $it", "Saved: $it") } ?: tr("Нет доступа к памяти: включите полный режим", "No storage access: enable full mode")
+        }
+    }
+
+    fun importFrom(uri: Uri) {
+        viewModelScope.launch {
+            val text = withContext(Dispatchers.IO) {
+                runCatching { c.appContext.contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() } }.getOrNull()
+            }
+            val data = text?.let(SettingsBackup::decode)
+            if (data == null) _message.value = tr("Это не файл настроек MCleaner", "This is not an MCleaner settings file")
+            else _pendingImport.value = data
+        }
+    }
+
+    fun confirmImport() {
+        val data = _pendingImport.value ?: return
+        _pendingImport.value = null
+        viewModelScope.launch {
+            c.settings.applyImport(data)
+            c.syncBackgroundWork()
+            _message.value = tr("Настройки импортированы", "Settings imported")
+        }
+    }
+
+    fun cancelImport() {
+        _pendingImport.value = null
+    }
+
+    fun reportNoPicker() {
+        _message.value = tr(
+            "На магнитоле нет окна выбора файла. Скопируйте файл в /sdcard/MCleaner/settings.json и переустановите MCleaner или используйте ноутбук.",
+            "The head unit has no file picker. Copy the file to /sdcard/MCleaner/settings.json and reinstall MCleaner, or use a laptop.",
+        )
     }
 
     fun setStopGoogle(on: Boolean) {

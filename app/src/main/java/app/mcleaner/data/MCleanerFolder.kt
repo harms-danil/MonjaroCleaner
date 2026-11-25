@@ -35,6 +35,16 @@ class MCleanerFolder(private val context: Context, private val hasAccess: () -> 
         return Result.success(if (f.isFile) runCatching { SettingsBackup.decode(f.readText()) }.getOrNull() else null)
     }
 
+    /** Fallback export when there is no system file picker. Returns the path, or null without access. */
+    fun writeExport(text: String): String? {
+        if (!available) return null
+        return runCatching {
+            val dir = File(shared, "export").apply { mkdirs() }
+            val stamp = java.text.SimpleDateFormat("yyyy-MM-dd_HH-mm", java.util.Locale.US).format(java.util.Date())
+            File(dir, "mcleaner-settings-$stamp.json").apply { writeText(text) }.path
+        }.getOrNull()
+    }
+
     fun writeBackup(data: BackupData): Boolean {
         if (!available) return false
         return runCatching {

@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import app.mcleaner.AppContainer
 import app.mcleaner.core.model.AppInfo
 import app.mcleaner.core.policy.BoostPolicy
+import app.mcleaner.ui.common.Formatters
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -86,8 +87,25 @@ class AppsViewModel(private val c: AppContainer) : ViewModel() {
         c.shizuku.exec("am force-stop ${app.packageName}").ok
     }
 
-    fun clearCache(app: AppInfo) = act(tr("${app.label}: кэш очищен", "${app.label}: cache cleared"), tr("${app.label}: не удалось очистить кэш", "${app.label}: could not clear cache")) {
-        c.cacheCleaner.clearOne(app.packageName, c.apps.currentUser())
+    /**
+     * Android 8+ refuses one app's internal cache to non-system callers. Then: clear its external cache
+     * and hand over to the system app page ([openSystemPage]) where «Очистить кэш» works.
+     */
+    fun clearCache(app: AppInfo, openSystemPage: () -> Unit) {
+        viewModelScope.launch {
+            val ok = runCatching { c.cacheCleaner.clearOne(app.packageName, c.apps.currentUser()) }.getOrDefault(false)
+            if (ok) {
+                _ui.value = _ui.value.copy(message = tr("${app.label}: кэш очищен", "${app.label}: cache cleared"))
+            } else {
+                val ext = c.cacheCleaner.clearExternal(listOf(app.packageName), android.os.Environment.getExternalStorageDirectory().path)
+                _ui.value = _ui.value.copy(
+                    message = (if (ext.bytes > 0) tr("Внешний кэш очищен (${Formatters.bytes(ext.bytes)}). ", "External cache cleared (${Formatters.bytes(ext.bytes)}). ") else "") +
+                        tr("Внутренний — в системной карточке: «Хранилище» → «Очистить кэш»", "Internal cache: Storage → Clear cache in the system page"),
+                )
+                openSystemPage()
+            }
+            _ui.value = _ui.value.copy(apps = c.apps.loadApps())
+        }
     }
 
     fun freeze(app: AppInfo) = act(tr("${app.label}: заморожено", "${app.label}: frozen"), tr("${app.label}: не удалось заморозить", "${app.label}: could not freeze")) {
