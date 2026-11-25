@@ -121,13 +121,36 @@ class BoostPolicyTest {
         assertFalse(BoostPolicy.canStopManually(app("app.mcleaner"), "app.mcleaner"))
     }
 
+    private fun canFreeze(pkg: String, system: Boolean = false, whitelist: Set<String> = emptySet(), protected: Set<String> = emptySet()) =
+        BoostPolicy.canFreeze(app(pkg, system = system), "app.mcleaner", whitelist, protected)
+
     @Test
     fun canFreeze_rejectsSystemGoogleSelfShizuku() {
-        assertTrue(BoostPolicy.canFreeze(app("com.example.game"), "app.mcleaner"))
-        assertFalse(BoostPolicy.canFreeze(app("com.android.settings", system = true), "app.mcleaner"))
-        assertFalse(BoostPolicy.canFreeze(app("com.android.vending"), "app.mcleaner"))
-        assertFalse(BoostPolicy.canFreeze(app("app.mcleaner"), "app.mcleaner"))
-        assertFalse(BoostPolicy.canFreeze(app(BoostPolicy.SHIZUKU_PACKAGE), "app.mcleaner"))
-        assertFalse(BoostPolicy.canFreeze(app("com.geely.hicar"), "app.mcleaner"))
+        assertTrue(canFreeze("com.example.game"))
+        assertFalse(canFreeze("com.android.settings", system = true))
+        assertFalse(canFreeze("com.android.vending"))
+        assertFalse(canFreeze("app.mcleaner"))
+        assertFalse(canFreeze(BoostPolicy.SHIZUKU_PACKAGE))
+        assertFalse(canFreeze("com.geely.hicar"))
+        assertFalse(canFreeze("com.ecarx.launcher2"))
+    }
+
+    @Test
+    fun canFreeze_rejectsLaunchersImeAndWhitelist() {
+        val protected = setOf("com.example.launcher", "com.other.home", "com.example.keyboard")
+        assertFalse(canFreeze("com.example.launcher", protected = protected))
+        assertFalse(canFreeze("com.other.home", protected = protected))
+        assertFalse(canFreeze("com.example.keyboard", protected = protected))
+        assertFalse(canFreeze("ru.yandex.yandexnavi", whitelist = setOf("ru.yandex.yandexnavi")))
+        assertTrue(canFreeze("com.example.game", whitelist = setOf("ru.yandex.yandexnavi"), protected = protected))
+    }
+
+    @Test
+    fun cacheTargets_skipBusy() {
+        val apps = listOf(app("ru.paused.player"), app("com.example.a11y"), app("com.example.game"))
+        assertEquals(
+            listOf("com.example.game"),
+            BoostPolicy.cacheTargets(apps, emptySet(), busy = setOf("ru.paused.player", "com.example.a11y")),
+        )
     }
 }

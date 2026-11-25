@@ -12,6 +12,11 @@ class JunkScannerTest {
     @get:Rule
     val tmp = TemporaryFolder()
 
+    /** Files written by the test are "now"; the scanner looks two hours later so they are old enough. */
+    private val later = System.currentTimeMillis() + 2 * 3_600_000L
+
+    private fun scanner(maxDepth: Int = 12) = JunkScanner(maxDepth = maxDepth, now = { later })
+
     private fun write(path: String, bytes: Int = 10): File =
         File(tmp.root, path).apply { parentFile!!.mkdirs(); writeBytes(ByteArray(bytes)) }
 
@@ -23,7 +28,7 @@ class JunkScannerTest {
         write("DCIM/photo.jpg", 50)
         File(tmp.root, "empty").mkdirs()
 
-        val items = JunkScanner().scan(tmp.root).associateBy { File(it.path).relativeTo(tmp.root).path }
+        val items = scanner().scan(tmp.root).associateBy { File(it.path).relativeTo(tmp.root).path }
 
         assertEquals(setOf("Download/a.apk", "app/x.log", "app/y.tmp", "empty"), items.keys)
         assertEquals(JunkItem(File(tmp.root, "Download/a.apk").path, 100, JunkCategory.APK), items["Download/a.apk"])
@@ -32,7 +37,7 @@ class JunkScannerTest {
 
     @Test
     fun rootItself_neverReported() {
-        assertTrue(JunkScanner().scan(tmp.root).isEmpty())
+        assertTrue(scanner().scan(tmp.root).isEmpty())
     }
 
     @Test
@@ -41,7 +46,7 @@ class JunkScannerTest {
         write("d/x.log")
         Files.createSymbolicLink(File(dir, "loop").toPath(), dir.toPath())
 
-        val items = JunkScanner().scan(tmp.root)
+        val items = scanner().scan(tmp.root)
 
         assertEquals(listOf(File(dir, "x.log").path), items.map { it.path })
     }
@@ -53,7 +58,7 @@ class JunkScannerTest {
         write("open/y.log")
         locked.setReadable(false)
         try {
-            val items = JunkScanner().scan(tmp.root)
+            val items = scanner().scan(tmp.root)
             assertEquals(listOf(File(tmp.root, "open/y.log").path), items.map { it.path })
         } finally {
             locked.setReadable(true)
@@ -63,6 +68,19 @@ class JunkScannerTest {
     @Test
     fun depthLimited() {
         write("a/b/c/d/deep.log")
-        assertTrue(JunkScanner(maxDepth = 2).scan(tmp.root).isEmpty())
+        assertTrue(scanner(maxDepth = 2).scan(tmp.root).isEmpty())
+    }
+
+    @Test
+    fun recentlyModified_skipped() {
+        val now = System.currentTimeMillis()
+        write("Download/old.apk").setLastModified(now - 2 * 3_600_000L)
+        write("Download/partial.apk").setLastModified(now - 10 * 60_000L)
+        File(tmp.root, "freshdir").apply { mkdirs(); setLastModified(now - 60_000L) }
+        File(tmp.root, "olddir").apply { mkdirs(); setLastModified(now - 3 * 3_600_000L) }
+
+        val items = JunkScanner(now = { now }).scan(tmp.root).map { File(it.path).relativeTo(tmp.root).path }.toSet()
+
+        assertEquals(setOf("Download/old.apk", "olddir"), items)
     }
 }

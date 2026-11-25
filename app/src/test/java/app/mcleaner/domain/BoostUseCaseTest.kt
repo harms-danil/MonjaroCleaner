@@ -29,16 +29,18 @@ class BoostUseCaseTest {
         freeRam: List<Long> = listOf(1000, 3000),
         cache: List<Long> = listOf(500, 100),
         killed: MutableList<String> = mutableListOf(),
+        context: BoostContext = ctx,
+        onKill: () -> Unit = {},
     ): BoostUseCase {
         val ram = ArrayDeque(freeRam)
         val caches = ArrayDeque(cache)
         return BoostUseCase(
             privileged = fake,
             loadApps = { apps },
-            buildContext = { ctx },
+            buildContext = { context },
             readFreeRamKb = { ram.removeFirstOrNull() ?: 0 },
             totalCacheBytes = { caches.removeFirstOrNull() ?: 0 },
-            killBackground = { killed += it },
+            killBackground = { onKill(); killed += it },
             cacheCleaner = CacheCleaner(fake),
             currentUser = { 0 },
             delayMs = {},
@@ -50,7 +52,7 @@ class BoostUseCaseTest {
         val fake = FakePrivileged()
         val report = useCase(fake, listOf(app("ru.yandex.yandexnavi"), app("com.example.game"))).run()
 
-        assertTrue("am force-stop com.example.game" in fake.calls)
+        assertTrue("am force-stop 'com.example.game'" in fake.calls)
         assertTrue(fake.calls.none { "yandexnavi" in it })
         assertEquals(listOf("com.example.game" to 0), fake.deleteCacheCalls)
         assertEquals(BoostReport(fullMode = true, stopped = 1, failed = emptyList(), freedRamKb = 2000, freedCacheBytes = 400, protectionUnavailable = false, stoppedPackages = listOf("com.example.game")), report)
@@ -116,5 +118,35 @@ class BoostUseCaseTest {
         val report = useCase(FakePrivileged(), listOf(app("com.example.game")), freeRam = listOf(3000, 1000), cache = listOf(100, 500)).run()
         assertEquals(0L, report.freedRamKb)
         assertEquals(0L, report.freedCacheBytes)
+    }
+
+    @Test
+    fun busyPackages_cacheNotCleared() = runTest {
+        val fake = FakePrivileged()
+        val apps = listOf(app("ru.paused.player", running = false), app("com.example.game", running = false))
+        useCase(fake, apps, context = ctx.copy(busyPackages = setOf("ru.paused.player"))).run()
+
+        assertEquals(listOf("com.example.game" to 0), fake.deleteCacheCalls)
+    }
+
+    @Test
+    fun clearCacheFalse_noCacheTouched() = runTest {
+        val fake = FakePrivileged(deleteCacheResult = { false })
+        val apps = (1..5).map { app("com.x$it") }
+        val report = useCase(fake, apps).run(clearCache = false)
+
+        assertTrue(fake.deleteCacheCalls.isEmpty())
+        assertTrue(fake.calls.all { it.startsWith("am force-stop ") })
+        assertEquals(5, report.stopped)
+    }
+
+    @Test
+    fun basicMode_killLoopOffCallerThread() = runTest {
+        val caller = Thread.currentThread()
+        val threads = mutableListOf<Thread>()
+        useCase(FakePrivileged(available = false), listOf(app("com.example.game")), onKill = { threads += Thread.currentThread() }).run()
+
+        assertEquals(1, threads.size)
+        assertTrue(threads.single() !== caller)
     }
 }

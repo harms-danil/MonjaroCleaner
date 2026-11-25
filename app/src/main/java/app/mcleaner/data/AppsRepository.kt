@@ -1,6 +1,7 @@
 package app.mcleaner.data
 
 import android.app.AppOpsManager
+import android.app.WallpaperManager
 import android.app.usage.StorageStatsManager
 import android.content.Context
 import android.content.Intent
@@ -14,7 +15,9 @@ import app.mcleaner.core.model.AppInfo
 import app.mcleaner.core.parse.DumpsysMeminfoParser
 import app.mcleaner.core.parse.DumpsysStateParsers
 import app.mcleaner.core.policy.InstalledApp
+import app.mcleaner.core.policy.ProtectedPackages
 import app.mcleaner.privileged.Privileged
+import app.mcleaner.privileged.shellQuote
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -97,10 +100,47 @@ class AppsRepository(private val context: Context, private val privileged: Privi
             activities.ok && DumpsysStateParsers.looksLikeActivities(activities.out)
         val packages = buildSet {
             addAll(DumpsysStateParsers.foregroundServicePackages(services.out))
-            addAll(DumpsysStateParsers.activeMediaSessionPackages(media.out))
+            // Every session, not only playing: a paused player keeps its queue and position.
+            addAll(ProtectedPackages.mediaSessionPackages(media.out))
             addAll(DumpsysStateParsers.resumedPackages(activities.out))
         }
         return BusyProbe(packages, known)
+    }
+
+    /**
+     * Apps the car needs to stay usable, in any mode: enabled accessibility services and notification
+     * listeners, the live wallpaper, and every launcher (HOME handler).
+     */
+    suspend fun carUsabilityPackages(): Set<String> = withContext(Dispatchers.IO) {
+        buildSet {
+            addAll(ProtectedPackages.fromComponentList(secureSetting(Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)))
+            addAll(ProtectedPackages.fromComponentList(secureSetting(ENABLED_NOTIFICATION_LISTENERS)))
+            runCatching { WallpaperManager.getInstance(context).wallpaperInfo?.packageName }.getOrNull()?.let(::add)
+            addAll(homePackages())
+        }
+    }
+
+    /** Must never be frozen: every launcher and the current keyboard. */
+    suspend fun freezeProtectedPackages(): Set<String> = withContext(Dispatchers.IO) {
+        homePackages() + setOfNotNull(imePackage())
+    }
+
+    /** Every app that handles HOME, not only the default: the resolved default may be the "android" chooser. */
+    fun homePackages(): Set<String> {
+        val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        val all = runCatching {
+            @Suppress("DEPRECATION")
+            pm.queryIntentActivities(home, PackageManager.MATCH_DISABLED_COMPONENTS).mapNotNull { it.activityInfo?.packageName }
+        }.getOrDefault(emptyList())
+        return (all + listOfNotNull(launcherPackage())).toSet()
+    }
+
+    /** Secure settings via the resolver; via shell when the resolver hides them from apps. */
+    private suspend fun secureSetting(key: String): String? {
+        val direct = runCatching { Settings.Secure.getString(context.contentResolver, key) }.getOrNull()
+        if (direct != null || !privileged.isAvailable) return direct
+        val r = privileged.exec("settings get secure ${shellQuote(key)}")
+        return if (r.ok) r.out.trim() else null
     }
 
     suspend fun currentUser(): Int {
@@ -139,12 +179,15 @@ class AppsRepository(private val context: Context, private val privileged: Privi
 
     private companion object {
         const val PER_USER_RANGE = 100_000
+
+        /** Settings.Secure.ENABLED_NOTIFICATION_LISTENERS is @hide. */
+        const val ENABLED_NOTIFICATION_LISTENERS = "enabled_notification_listeners"
     }
 
     /** In full mode grant ourselves usage stats and all-files access, so the user doesn't have to. */
     suspend fun ensureGrants() {
         if (!privileged.isAvailable) return
-        val me = context.packageName
+        val me = shellQuote(context.packageName)
         if (!hasUsageAccess()) privileged.exec("appops set $me GET_USAGE_STATS allow")
         if (!hasAllFilesAccess()) {
             if (Build.VERSION.SDK_INT >= 30) {
@@ -166,8 +209,8 @@ class AppsRepository(private val context: Context, private val privileged: Privi
     suspend fun grantAll() {
         if (!privileged.isAvailable) return
         ensureGrants()
-        val me = context.packageName
+        val me = shellQuote(context.packageName)
         if (!canInstallApps()) privileged.exec("appops set $me REQUEST_INSTALL_PACKAGES allow")
-        if (!ignoresBatteryOptimizations()) privileged.exec("dumpsys deviceidle whitelist +$me")
+        if (!ignoresBatteryOptimizations()) privileged.exec("dumpsys deviceidle whitelist ${shellQuote("+" + context.packageName)}")
     }
 }

@@ -9,6 +9,7 @@ data class BoostContext(
     val launcherPackage: String?,
     val imePackage: String?,
     val selfPackage: String,
+    /** Never stopped, cache kept: foreground services, media sessions, resumed apps, accessibility, notification listeners, live wallpaper, launchers. */
     val busyPackages: Set<String>,
     /** False when the busy probe failed: then nothing may be force-stopped (fail closed). */
     val busyKnown: Boolean = true,
@@ -29,8 +30,9 @@ object BoostPolicy {
     fun blindKillCandidates(apps: List<AppInfo>, ctx: BoostContext): List<String> =
         apps.filter { mayStop(it, ctx, allowGoogle = false) }.map { it.packageName }
 
-    fun cacheTargets(apps: List<AppInfo>, whitelist: Set<String>): List<String> =
-        apps.map { it.packageName }.filter { it !in whitelist && !isCarSystem(it) }
+    /** [busy]: apps in use right now (players, accessibility, launchers…): their cache stays. */
+    fun cacheTargets(apps: List<AppInfo>, whitelist: Set<String>, busy: Set<String> = emptySet()): List<String> =
+        apps.map { it.packageName }.filter { it !in whitelist && it !in busy && !isCarSystem(it) }
 
     /** Manual "Stop" in the app list: user apps and Google; never system or car packages. */
     fun canStopManually(app: AppInfo, selfPackage: String): Boolean {
@@ -39,10 +41,11 @@ object BoostPolicy {
         return !app.isSystem || pkg in GOOGLE_PACKAGES
     }
 
-    fun canFreeze(app: AppInfo, selfPackage: String): Boolean {
+    /** [protectedPackages]: every launcher (HOME handler) and the current keyboard: freezing them strands the user. */
+    fun canFreeze(app: AppInfo, selfPackage: String, whitelist: Set<String>, protectedPackages: Set<String>): Boolean {
         val pkg = app.packageName
         return !app.isSystem && pkg !in GOOGLE_PACKAGES && pkg != selfPackage &&
-            pkg != SHIZUKU_PACKAGE && !isCarSystem(pkg)
+            pkg != SHIZUKU_PACKAGE && !isCarSystem(pkg) && pkg !in whitelist && pkg !in protectedPackages
     }
 
     private fun mayStop(app: AppInfo, ctx: BoostContext, allowGoogle: Boolean): Boolean {
