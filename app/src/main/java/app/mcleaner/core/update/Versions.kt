@@ -52,6 +52,7 @@ data class BackupData(
     val scheduleMinutes: Int = 0,
     val lowMemoryAlert: Boolean = false,
     val lowMemoryPercent: Int = 15,
+    val shizukuAutostart: Boolean = false,
 )
 
 object SettingsBackup {
@@ -66,6 +67,7 @@ object SettingsBackup {
         .put("scheduleMinutes", d.scheduleMinutes)
         .put("lowMemoryAlert", d.lowMemoryAlert)
         .put("lowMemoryPercent", d.lowMemoryPercent)
+        .put("shizukuAutostart", d.shizukuAutostart)
         .toString(2)
 
     fun decode(text: String): BackupData? = try {
@@ -81,6 +83,7 @@ object SettingsBackup {
                 scheduleMinutes = o.optInt("scheduleMinutes", 0).coerceIn(0, 24 * 60),
                 lowMemoryAlert = o.optBoolean("lowMemoryAlert", false),
                 lowMemoryPercent = o.optInt("lowMemoryPercent", 15).coerceIn(5, 50),
+                shizukuAutostart = o.optBoolean("shizukuAutostart", false),
             )
         }
     } catch (_: JSONException) {

@@ -21,8 +21,8 @@ android {
         applicationId = "app.mcleaner"
         minSdk = 28
         targetSdk = 35
-        versionCode = 9
-        versionName = "1.4.1"
+        versionCode = 10
+        versionName = "1.5.0"
     }
 
     signingConfigs {
@@ -75,6 +75,8 @@ dependencies {
     implementation(libs.shizuku.api)
     implementation(libs.shizuku.provider)
     implementation(libs.kotlinx.coroutines.android)
+    // ADB client: MCleaner connects to the head unit's own adbd (127.0.0.1:5555) to start Shizuku after reboot.
+    implementation(libs.dadb)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     testImplementation(libs.junit)

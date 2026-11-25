@@ -21,6 +21,7 @@ class MainActivity : ComponentActivity() {
         val container = (application as MCleanerApp).container
         lifecycleScope.launch {
             container.syncBackgroundWork()
+            if (container.settings.current().shizukuAutostart) app.mcleaner.auto.ShizukuAutostartWorker.enqueue(this@MainActivity)
         }
         // Once per launch (not on rotation or language change): silent, retries while offline.
         if (savedInstanceState == null) container.updates.autoCheck()

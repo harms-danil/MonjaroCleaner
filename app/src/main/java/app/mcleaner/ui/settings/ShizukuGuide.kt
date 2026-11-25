@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
@@ -124,4 +125,50 @@ fun ShizukuInstallRow(installer: app.mcleaner.privileged.ShizukuInstaller, showB
         )
     }
     message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
+}
+
+/** «Запускать Shizuku автоматически» + network-ADB check and «Запустить Shizuku сейчас» (no laptop). */
+@Composable
+fun ShizukuAutostartRows(vm: SettingsViewModel, autostart: Boolean, full: Boolean) {
+    val busy by vm.adbBusy.collectAsStateWithLifecycle()
+    val result by vm.adbResult.collectAsStateWithLifecycle()
+    Row(Modifier.fillMaxWidth().heightIn(min = MinTouch), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(tr("Запускать Shizuku автоматически", "Start Shizuku automatically"))
+            Text(
+                tr(
+                    "После перезагрузки, при открытии MCleaner и включении экрана — через ADB по сети самой магнитолы (порт 5555). Работает, если прошивка держит ADB по сети включённым (MConfig+ / инженерное меню). Первый раз подтвердите «Разрешить отладку» с галочкой «Всегда».",
+                    "After reboot, on app start and screen-on — through the head unit's own network ADB (port 5555). Works if the firmware keeps network ADB on (MConfig+ / engineering menu). Confirm «Allow debugging» with «Always» the first time.",
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        androidx.compose.material3.Switch(checked = autostart, onCheckedChange = vm::setShizukuAutostart)
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.material3.OutlinedButton(onClick = { vm.runAdb(start = false) }, enabled = !busy, modifier = Modifier.heightIn(min = MinTouch)) {
+            Text(tr("Проверить ADB по сети", "Check network ADB"))
+        }
+        if (!full) {
+            androidx.compose.material3.Button(onClick = { vm.runAdb(start = true) }, enabled = !busy, modifier = Modifier.heightIn(min = MinTouch)) {
+                Text(tr("Запустить Shizuku сейчас", "Start Shizuku now"))
+            }
+        }
+        if (busy) androidx.compose.material3.CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 3.dp)
+    }
+    result?.let { r ->
+        val (text, good) = when (r) {
+            app.mcleaner.core.adb.AdbStartResult.Started -> tr("ADB по сети работает — автозапуск возможен.", "Network ADB works — autostart is possible.") to true
+            app.mcleaner.core.adb.AdbStartResult.NoNetworkAdb -> tr(
+                "ADB по сети выключен: порт не отвечает. Включите «ADB по сети»/«Wireless ADB» в MConfig+ или инженерном меню и проверьте, что он остаётся после перезагрузки.",
+                "Network ADB is off: the port does not answer. Enable network/wireless ADB in MConfig+ or the engineering menu and check it survives a reboot.",
+            ) to false
+            app.mcleaner.core.adb.AdbStartResult.NotAuthorized -> tr(
+                "Нет подтверждения: на экране должно было появиться «Разрешить отладку по USB?» — отметьте «Всегда разрешать» и нажмите «ОК», затем повторите.",
+                "Not confirmed: «Allow USB debugging?» should have appeared — tick «Always allow», tap OK and try again.",
+            ) to false
+            is app.mcleaner.core.adb.AdbStartResult.Failed -> tr("Ошибка: ${r.details}", "Error: ${r.details}") to false
+        }
+        Text(text, color = if (good) app.mcleaner.ui.theme.Palette.Good else MaterialTheme.colorScheme.error)
+    }
 }

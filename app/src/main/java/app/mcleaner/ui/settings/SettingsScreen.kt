@@ -65,6 +65,7 @@ fun SettingsScreen() {
                     Badge(shizuku.title(), if (full) BadgeKind.GOOD else BadgeKind.WARN)
                 }
                 ShizukuInstallRow(container().shizukuInstaller, showButton = shizuku == ShizukuState.NOT_INSTALLED)
+                if (shizuku != ShizukuState.NOT_INSTALLED) ShizukuAutostartRows(vm, settings?.shizukuAutostart == true, full)
                 if (!full) {
                     ShizukuGuide()
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

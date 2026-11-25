@@ -85,6 +85,33 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
+    fun setShizukuAutostart(on: Boolean) {
+        viewModelScope.launch {
+            c.settings.setShizukuAutostart(on)
+            if (on) app.mcleaner.auto.ShizukuAutostartWorker.enqueue(c.appContext)
+        }
+    }
+
+    private val _adbBusy = MutableStateFlow(false)
+    val adbBusy: StateFlow<Boolean> = _adbBusy.asStateFlow()
+    private val _adbResult = MutableStateFlow<app.mcleaner.core.adb.AdbStartResult?>(null)
+    val adbResult: StateFlow<app.mcleaner.core.adb.AdbStartResult?> = _adbResult.asStateFlow()
+
+    /** «Проверить ADB по сети» (probe) or «Запустить Shizuku сейчас» (start). */
+    fun runAdb(start: Boolean) {
+        if (_adbBusy.value) return
+        _adbBusy.value = true
+        _adbResult.value = null
+        viewModelScope.launch {
+            _adbResult.value = if (start) c.adbAutostart.startShizuku() else c.adbAutostart.probe()
+            _adbBusy.value = false
+            if (start) {
+                kotlinx.coroutines.delay(2_000)
+                c.shizuku.refresh()
+            }
+        }
+    }
+
     fun setLowMemoryPercent(percent: Int) {
         viewModelScope.launch { c.settings.setLowMemoryPercent(percent) }
     }

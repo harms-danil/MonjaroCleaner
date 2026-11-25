@@ -20,6 +20,8 @@ class BootReceiver : BroadcastReceiver() {
                     AutoBoostScheduler.schedule(context, AutoBoostGate.BOOT_DELAY_MS)
                 }
                 app.container.syncBackgroundWork()
+                // adbd may still be starting: first attempt a bit later, then retries.
+                if (app.container.settings.current().shizukuAutostart) ShizukuAutostartWorker.enqueue(context, delayMs = 20_000)
             } finally {
                 pending.finish()
             }

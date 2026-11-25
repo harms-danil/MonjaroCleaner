@@ -23,10 +23,13 @@ data class Settings(
     val scheduleMinutes: Int = 0,
     val lowMemoryAlert: Boolean = false,
     val lowMemoryPercent: Int = 15,
+    /** Start Shizuku through network ADB after reboots (needs network ADB kept on by the firmware). */
+    val shizukuAutostart: Boolean = false,
 ) {
     fun toBackup() = BackupData(
         whitelist = whitelist, frozen = frozen, autoBoost = autoBoost, stopGoogle = stopGoogle,
         scheduleMinutes = scheduleMinutes, lowMemoryAlert = lowMemoryAlert, lowMemoryPercent = lowMemoryPercent,
+        shizukuAutostart = shizukuAutostart,
     )
 }
 
@@ -55,6 +58,8 @@ class SettingsStore(private val context: Context) {
 
     suspend fun setLowMemoryPercent(percent: Int) = context.dataStore.edit { it[LOW_MEM_PCT] = percent }
 
+    suspend fun setShizukuAutostart(on: Boolean) = context.dataStore.edit { it[SHIZUKU_AUTOSTART] = on }
+
     /**
      * Import from a file (another car or an older export). The frozen list is not applied:
      * it describes which apps are disabled on that particular head unit.
@@ -66,6 +71,7 @@ class SettingsStore(private val context: Context) {
         p[SCHEDULE_MIN] = d.scheduleMinutes
         p[LOW_MEM] = d.lowMemoryAlert
         p[LOW_MEM_PCT] = d.lowMemoryPercent
+        p[SHIZUKU_AUTOSTART] = d.shizukuAutostart
         p[INITIALIZED] = true
     }
 
@@ -87,6 +93,7 @@ class SettingsStore(private val context: Context) {
             p[SCHEDULE_MIN] = backup.scheduleMinutes
             p[LOW_MEM] = backup.lowMemoryAlert
             p[LOW_MEM_PCT] = backup.lowMemoryPercent
+            p[SHIZUKU_AUTOSTART] = backup.shizukuAutostart
         }
         p[INITIALIZED] = true
     }
@@ -102,6 +109,7 @@ class SettingsStore(private val context: Context) {
         scheduleMinutes = this[SCHEDULE_MIN] ?: 0,
         lowMemoryAlert = this[LOW_MEM] ?: false,
         lowMemoryPercent = this[LOW_MEM_PCT] ?: 15,
+        shizukuAutostart = this[SHIZUKU_AUTOSTART] ?: false,
     )
 
     companion object {
@@ -126,5 +134,6 @@ class SettingsStore(private val context: Context) {
         private val SCHEDULE_MIN = intPreferencesKey("schedule_minutes")
         private val LOW_MEM = booleanPreferencesKey("low_memory_alert")
         private val LOW_MEM_PCT = intPreferencesKey("low_memory_percent")
+        private val SHIZUKU_AUTOSTART = booleanPreferencesKey("shizuku_autostart")
     }
 }

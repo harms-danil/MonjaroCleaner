@@ -45,6 +45,8 @@ class WakeWatchService : Service() {
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             AutoBoostScheduler.schedule(context, AutoBoostGate.WAKE_DELAY_MS)
+            // Shizuku can die while the unit sleeps (or with a system restart): bring it back.
+            ShizukuAutostartWorker.enqueue(context, delayMs = 5_000)
         }
     }
 
