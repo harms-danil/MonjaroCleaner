@@ -23,6 +23,11 @@ data class OverviewUi(
     val topCache: List<AppInfo> = emptyList(),
     val loaded: Boolean = false,
     val candidates: Int = 0,
+    /** Full mode: running apps «Ускорить» would stop, biggest first. */
+    val toStop: List<AppInfo> = emptyList(),
+    /** Full mode: running apps it leaves alone, and why. */
+    val kept: List<Pair<AppInfo, app.mcleaner.core.policy.SkipReason>> = emptyList(),
+    val busyKnown: Boolean = true,
     val boosting: Boolean = false,
     val report: BoostReport? = null,
 )
@@ -56,14 +61,18 @@ class OverviewViewModel(private val c: AppContainer) : ViewModel() {
         refreshJob = viewModelScope.launch {
             val apps = c.apps.loadApps()
             val ctx = c.boostContext()
-            val candidates = if (c.shizuku.isAvailable) {
+            val full = c.shizuku.isAvailable
+            val candidates = if (full) {
                 BoostPolicy.killCandidates(apps, ctx).size
             } else {
                 BoostPolicy.blindKillCandidates(apps, ctx).size
             }
+            val running = if (full) apps.filter { it.isRunning }.sortedByDescending { it.pssKb ?: 0 } else emptyList()
+            val toStop = if (ctx.busyKnown) running.filter { BoostPolicy.skipReason(it, ctx) == null } else emptyList()
+            val kept = running.mapNotNull { a -> BoostPolicy.skipReason(a, ctx)?.let { a to it } }
             val top = apps.filter { it.pssKb != null }.sortedByDescending { it.pssKb }.take(TOP)
             val topCache = apps.filter { (it.cacheBytes ?: 0) > 0 }.sortedByDescending { it.cacheBytes }.take(TOP)
-            _ui.value = _ui.value.copy(topApps = top, topCache = topCache, candidates = candidates, loaded = true)
+            _ui.value = _ui.value.copy(topApps = top, topCache = topCache, candidates = candidates, loaded = true, toStop = toStop, kept = kept, busyKnown = ctx.busyKnown)
         }.also { job -> job.invokeOnCompletion { if (refreshAgain) viewModelScope.launch { refresh() } } }
     }
 

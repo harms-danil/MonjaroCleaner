@@ -58,6 +58,8 @@ fun OverviewScreen() {
     val full = shizuku == ShizukuState.READY
     var showHistory by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     if (showHistory) HistoryDialog(app.mcleaner.ui.common.container().history) { showHistory = false }
+    var showPreview by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    if (showPreview) BoostPreviewDialog(ui) { showPreview = false }
     var byCache by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { vm.refresh() }
 
@@ -161,14 +163,17 @@ fun OverviewScreen() {
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    if (full) tr(
-                        "Завершит ${app.mcleaner.core.i18n.count(ui.candidates, "фоновое приложение", "фоновых приложения", "фоновых приложений", "background app", "background apps")} и очистит кэш",
-                        "Will stop ${app.mcleaner.core.i18n.count(ui.candidates, "фоновое приложение", "фоновых приложения", "фоновых приложений", "background app", "background apps")} and clear cache",
-                    ) else tr("Попросит систему выгрузить фоновые приложения", "Will ask the system to unload background apps"),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    boostPreview(full, ui),
+                    color = if (full && !ui.busyKnown) Palette.Warn else MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     fontSize = 16.sp,
                 )
+                if (full && ui.loaded) {
+                    androidx.compose.material3.TextButton(
+                        onClick = { showPreview = true },
+                        modifier = Modifier.heightIn(min = app.mcleaner.ui.common.MinTouch),
+                    ) { Text(tr("Подробнее", "Details")) }
+                }
                 androidx.compose.material3.TextButton(
                     onClick = { showHistory = true },
                     modifier = Modifier.heightIn(min = app.mcleaner.ui.common.MinTouch),

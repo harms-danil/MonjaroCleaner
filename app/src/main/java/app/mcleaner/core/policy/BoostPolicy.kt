@@ -15,6 +15,9 @@ data class BoostContext(
     val busyKnown: Boolean = true,
 )
 
+/** Why «Ускорить» leaves a running app alone (shown in the boost preview). */
+enum class SkipReason { WHITELIST, IN_USE, SYSTEM, GOOGLE, SELF }
+
 object BoostPolicy {
     val GOOGLE_PACKAGES = setOf("com.google.android.gms", "com.google.android.gsf", "com.android.vending")
     val NEVER_TOUCH_PREFIXES = listOf("com.ecarx.", "com.geely.")
@@ -48,11 +51,21 @@ object BoostPolicy {
             pkg != SHIZUKU_PACKAGE && !isCarSystem(pkg) && pkg !in whitelist && pkg !in protectedPackages
     }
 
-    private fun mayStop(app: AppInfo, ctx: BoostContext, allowGoogle: Boolean): Boolean {
+    /** Null when full-mode «Ускорить» would stop [app]; otherwise why it stays. */
+    fun skipReason(app: AppInfo, ctx: BoostContext): SkipReason? = skipReason(app, ctx, allowGoogle = ctx.stopGoogle)
+
+    private fun skipReason(app: AppInfo, ctx: BoostContext, allowGoogle: Boolean): SkipReason? {
         val pkg = app.packageName
-        val protected = setOfNotNull(ctx.foregroundPackage, ctx.launcherPackage, ctx.imePackage, ctx.selfPackage, SHIZUKU_PACKAGE)
-        if (pkg in ctx.whitelist || pkg in protected || pkg in ctx.busyPackages || isCarSystem(pkg)) return false
-        if (pkg in GOOGLE_PACKAGES) return allowGoogle
-        return !app.isSystem
+        return when {
+            pkg == ctx.selfPackage || pkg == SHIZUKU_PACKAGE -> SkipReason.SELF
+            pkg in ctx.whitelist -> SkipReason.WHITELIST
+            pkg == ctx.foregroundPackage || pkg == ctx.launcherPackage || pkg == ctx.imePackage || pkg in ctx.busyPackages -> SkipReason.IN_USE
+            isCarSystem(pkg) -> SkipReason.SYSTEM
+            pkg in GOOGLE_PACKAGES -> if (allowGoogle) null else SkipReason.GOOGLE
+            app.isSystem -> SkipReason.SYSTEM
+            else -> null
+        }
     }
+
+    private fun mayStop(app: AppInfo, ctx: BoostContext, allowGoogle: Boolean): Boolean = skipReason(app, ctx, allowGoogle) == null
 }

@@ -26,6 +26,26 @@ class BoostPolicyTest {
     )
 
     @Test
+    fun skipReason_explainsWhyARunningAppStays() {
+        val c = ctx(whitelist = setOf("ru.yandex.music"), busy = setOf("com.player"))
+        assertEquals(null, BoostPolicy.skipReason(app("com.example.game"), c))
+        assertEquals(SkipReason.WHITELIST, BoostPolicy.skipReason(app("ru.yandex.music"), c))
+        assertEquals(SkipReason.IN_USE, BoostPolicy.skipReason(app("com.player"), c))
+        assertEquals(SkipReason.IN_USE, BoostPolicy.skipReason(app("com.example.ime"), c))
+        assertEquals(SkipReason.SYSTEM, BoostPolicy.skipReason(app("com.android.settings", system = true), c))
+        assertEquals(SkipReason.SYSTEM, BoostPolicy.skipReason(app("com.ecarx.radio"), c))
+        assertEquals(SkipReason.GOOGLE, BoostPolicy.skipReason(app("com.google.android.gms", system = true), c))
+        assertEquals(SkipReason.SELF, BoostPolicy.skipReason(app("app.mcleaner"), c))
+    }
+
+    @Test
+    fun skipReason_agreesWithKillCandidates() {
+        val apps = listOf(app("com.example.game"), app("ru.yandex.music"), app("com.player"), app("com.android.settings", system = true))
+        val c = ctx(whitelist = setOf("ru.yandex.music"), busy = setOf("com.player"))
+        assertEquals(BoostPolicy.killCandidates(apps, c), apps.filter { BoostPolicy.skipReason(it, c) == null }.map { it.packageName })
+    }
+
+    @Test
     fun userBackgroundApp_isCandidate() {
         assertEquals(listOf("com.example.game"), BoostPolicy.killCandidates(listOf(app("com.example.game")), ctx()))
     }
