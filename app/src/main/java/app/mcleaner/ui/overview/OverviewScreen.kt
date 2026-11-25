@@ -192,6 +192,7 @@ fun OverviewScreen() {
                     Text(tr("Освобождено ${Formatters.kb(r.freedRamKb)} оперативной памяти", "Freed ${Formatters.kb(r.freedRamKb)} of RAM"))
                     if (r.fullMode) Text(tr("Очищено ${Formatters.bytes(r.freedCacheBytes)} кэша", "Cleared ${Formatters.bytes(r.freedCacheBytes)} of cache"))
                     Text(tr("Остановлено приложений: ${r.stopped}", "Apps stopped: ${r.stopped}"))
+                    if (r.trimmed > 0) Text(tr("Попросили освободить память, не останавливая: ${r.trimmed}", "Asked to free memory without stopping: ${r.trimmed}"))
                     if (r.failed.isNotEmpty()) Text(tr("Не удалось остановить: ${r.failed.size}", "Could not stop: ${r.failed.size}"), color = Palette.Warn)
                     if (r.protectionUnavailable) {
                         Text(

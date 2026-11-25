@@ -17,6 +17,8 @@ data class BoostReport(
     val protectionUnavailable: Boolean = false,
     /** Force-stopped packages (full mode), for the history. */
     val stoppedPackages: List<String> = emptyList(),
+    /** Apps that kept running and were asked to free memory («мягкое ускорение»). */
+    val trimmed: Int = 0,
 )
 
 class BoostUseCase(
@@ -41,6 +43,7 @@ class BoostUseCase(
         val full = privileged.isAvailable
 
         var stopped = 0
+        var trimmed = 0
         val failed = mutableListOf<String>()
         val stoppedPackages = mutableListOf<String>()
         if (full) {
@@ -50,6 +53,11 @@ class BoostUseCase(
                     stoppedPackages += pkg
                 } else {
                     failed += pkg
+                }
+            }
+            if (ctx.busyKnown) {
+                for ((pkg, level) in BoostPolicy.trimTargets(apps, ctx)) {
+                    if (privileged.exec("am send-trim-memory ${shellQuote(pkg)} $level").ok) trimmed++
                 }
             }
             // Force-stop leaves the cards in the system's running-apps screen: drop them too.
@@ -79,6 +87,7 @@ class BoostUseCase(
             freedCacheBytes = (cacheBefore - totalCacheBytes()).coerceAtLeast(0),
             protectionUnavailable = full && !ctx.busyKnown,
             stoppedPackages = stoppedPackages,
+            trimmed = trimmed,
         )
     }
 

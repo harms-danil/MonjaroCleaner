@@ -1,5 +1,6 @@
 package app.mcleaner.ui.apps
 
+import app.mcleaner.core.log.L
 import app.mcleaner.core.i18n.tr
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -118,6 +119,7 @@ class AppsViewModel(private val c: AppContainer) : ViewModel() {
     fun clearCache(app: AppInfo, openSystemPage: () -> Unit) {
         viewModelScope.launch {
             val ok = runCatching { c.cacheCleaner.clearOne(app.packageName, c.apps.currentUser()) }.getOrDefault(false)
+            L.i("Apps", "clear cache ${app.packageName}: internal ${if (ok) "cleared" else "refused"}")
             if (ok) {
                 _ui.value = _ui.value.copy(message = tr("${app.label}: кэш очищен", "${app.label}: cache cleared"))
             } else {
@@ -153,7 +155,8 @@ class AppsViewModel(private val c: AppContainer) : ViewModel() {
 
     private fun act(ok: String, fail: String, block: suspend () -> Boolean) {
         viewModelScope.launch {
-            val success = runCatching { block() }.getOrDefault(false)
+            val success = runCatching { block() }.onFailure { L.e("Apps", "action failed: $fail", it) }.getOrDefault(false)
+            L.i("Apps", if (success) ok else fail)
             _ui.value = _ui.value.copy(message = if (success) ok else fail)
             if (success) reload()
         }

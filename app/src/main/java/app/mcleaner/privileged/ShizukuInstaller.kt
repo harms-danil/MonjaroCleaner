@@ -1,5 +1,6 @@
 package app.mcleaner.privileged
 
+import app.mcleaner.core.log.L
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -37,7 +38,11 @@ class ShizukuInstaller(private val context: Context) {
     suspend fun install(): Boolean {
         // One install at a time: a second session for the same package fails in the system installer
         // with «App not installed» even though the first one succeeds.
-        if (!_busy.compareAndSet(expect = false, update = true)) return false
+        if (!_busy.compareAndSet(expect = false, update = true)) {
+            L.i("ShizukuInstall", "ignored: install already running")
+            return false
+        }
+        L.i("ShizukuInstall", "install bundled ${BUNDLED_VERSION}, can install ${context.packageManager.canRequestPackageInstalls()}")
         if (!context.packageManager.canRequestPackageInstalls()) {
             _busy.value = false
             _message.value = tr(
@@ -65,6 +70,7 @@ class ShizukuInstaller(private val context: Context) {
             true
         } catch (e: Exception) {
             _busy.value = false
+            L.e("ShizukuInstall", "session failed", e)
             _message.value = tr("Не удалось установить Shizuku: ${e.message}", "Could not install Shizuku: ${e.message}")
             false
         }
@@ -91,6 +97,7 @@ class ShizukuInstaller(private val context: Context) {
 
     internal fun onResult(status: Int, message: String?) {
         _busy.value = false
+        L.i("ShizukuInstall", "result status $status, message $message")
         val installed = runCatching { context.packageManager.getPackageInfo(SHIZUKU_PACKAGE, 0) }.isSuccess
         _message.value = when {
             status == PackageInstaller.STATUS_SUCCESS || (installed && status != PackageInstaller.STATUS_FAILURE_ABORTED) -> tr(

@@ -1,5 +1,6 @@
 package app.mcleaner.auto
 
+import app.mcleaner.core.log.L
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
@@ -35,9 +36,12 @@ class ShizukuAutostartWorker(context: Context, params: WorkerParameters) : Corou
 
         c.shizuku.refresh()
         val state = withTimeoutOrNull(2_000) { c.shizuku.state.first { it != ShizukuState.NOT_RUNNING } } ?: c.shizuku.state.value
+        L.i("Autostart", "worker run: Shizuku $state, attempt $runAttemptCount")
         if (state != ShizukuState.NOT_RUNNING) return Result.success() // running, or not installed: nothing to do
 
-        return when (val r = c.adbAutostart.startShizuku(AdbAutostart.BACKGROUND_AUTH_WAIT_MS)) {
+        val r = c.adbAutostart.startShizuku(AdbAutostart.BACKGROUND_AUTH_WAIT_MS)
+        L.i("Autostart", "network ADB start: $r")
+        return when (r) {
             AdbStartResult.Started -> {
                 delay(2_000)
                 c.shizuku.refresh()
@@ -51,6 +55,7 @@ class ShizukuAutostartWorker(context: Context, params: WorkerParameters) : Corou
     }
 
     private fun giveUp(r: AdbStartResult): Result {
+        L.w("Autostart", "gave up after ${runAttemptCount + 1} attempt(s): $r")
         val text = when (r) {
             AdbStartResult.NoNetworkAdb -> tr(
                 "ADB по сети недоступен после перезагрузки. Запустите Shizuku вручную или включите ADB по сети.",

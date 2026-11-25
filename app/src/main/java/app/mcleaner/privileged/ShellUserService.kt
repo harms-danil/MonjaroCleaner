@@ -31,6 +31,13 @@ class ShellUserService() : IShellService.Stub() {
         "-1\n${t.javaClass.simpleName}: ${t.message}"
     }
 
+    override fun execTimeout(command: String, timeoutMs: Long): String = try {
+        val (code, out) = ShellRunner.run(command, timeoutMs.coerceIn(1_000L, 20 * 60_000L), MAX_OUTPUT_CHARS)
+        "$code\n$out"
+    } catch (t: Throwable) {
+        "-1\n${t.javaClass.simpleName}: ${t.message}"
+    }
+
     /**
      * PMS may "silently ignore" callers without INTERNAL_DELETE_CACHE_FILES (no exception, no callback),
      * so success is only what the observer reports within [OBSERVER_TIMEOUT_MS].

@@ -1,5 +1,6 @@
 package app.mcleaner.auto
 
+import app.mcleaner.core.log.L
 import android.app.Activity
 import android.app.NotificationManager
 import android.content.Context
@@ -24,6 +25,7 @@ class BoostShortcutActivity : Activity() {
         val source = intent.getStringExtra(EXTRA_SOURCE)
             ?.let { s -> BoostSource.entries.firstOrNull { it.name == s } } ?: BoostSource.SHORTCUT
         val app = applicationContext as MCleanerApp
+        L.i("Shortcut", "boost requested from $source")
         if (source == BoostSource.LOW_MEMORY) {
             getSystemService(NotificationManager::class.java).cancel(WakeWatchService.LOW_MEMORY_NOTIFICATION_ID)
         }

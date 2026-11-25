@@ -12,6 +12,7 @@ import app.mcleaner.core.model.ShellResult
 import app.mcleaner.core.policy.BoostPolicy
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import app.mcleaner.core.log.L
 import app.mcleaner.core.policy.RecentTasks
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,12 +42,14 @@ class ShizukuPrivileged(private val context: Context) : Privileged {
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             if (binder == null || !binder.pingBinder()) return
+            L.i("Shizuku", "user service connected")
             val s = IShellService.Stub.asInterface(binder)
             service = s
             serviceReady.complete(s)
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
+            L.w("Shizuku", "user service disconnected")
             dropService()
         }
     }
@@ -79,7 +82,41 @@ class ShizukuPrivileged(private val context: Context) : Privileged {
         runCatching { Shizuku.bindUserService(args, connection) }
     }
 
+    private val execThrottle = app.mcleaner.core.log.ExecThrottle()
+
     override suspend fun exec(command: String): ShellResult {
+        val t0 = android.os.SystemClock.elapsedRealtime()
+        val r = execRaw(command)
+        val ms = android.os.SystemClock.elapsedRealtime() - t0
+        val d = execThrottle.decide(command, r.ok, t0)
+        if (d.log) {
+            val head = "exec `${command.take(300)}` -> ${r.code} in $ms ms, ${r.out.length} chars" + if (d.skipped > 0) " (+${d.skipped} same runs not logged)" else ""
+            val out = r.out.trim().take(600)
+            if (r.ok) L.d("Shell", head) else L.w("Shell", if (out.isEmpty()) head else "$head\n$out")
+        }
+        return r
+    }
+
+    override suspend fun execLong(command: String, timeoutMs: Long): ShellResult {
+        val t0 = android.os.SystemClock.elapsedRealtime()
+        val s = awaitService() ?: return ShellResult(-1, tr("Shizuku недоступен", "Shizuku unavailable"))
+        val r = withContext(Dispatchers.IO) {
+            try {
+                val raw = s.execTimeout(command, timeoutMs) ?: return@withContext ShellResult(-1, "")
+                ShellResult(raw.substringBefore('\n').trim().toIntOrNull() ?: -1, raw.substringAfter('\n', ""))
+            } catch (t: Throwable) {
+                L.w("Shizuku", "long exec binder failed", t)
+                dropService()
+                refresh()
+                ShellResult(-1, t.message ?: t.javaClass.simpleName)
+            }
+        }
+        val line = "exec long `${command.take(300)}` -> ${r.code} in ${android.os.SystemClock.elapsedRealtime() - t0} ms"
+        if (r.ok) L.i("Shell", line) else L.w("Shell", line + "\n" + r.out.take(600))
+        return r
+    }
+
+    private suspend fun execRaw(command: String): ShellResult {
         val s = awaitService() ?: return ShellResult(-1, tr("Shizuku недоступен", "Shizuku unavailable"))
         return withContext(Dispatchers.IO) {
             try {
@@ -87,6 +124,7 @@ class ShizukuPrivileged(private val context: Context) : Privileged {
                 val code = raw.substringBefore('\n').trim().toIntOrNull() ?: -1
                 ShellResult(code, raw.substringAfter('\n', ""))
             } catch (t: Throwable) {
+                L.w("Shizuku", "exec binder failed, rebinding", t)
                 dropService()
                 refresh()
                 ShellResult(-1, t.message ?: t.javaClass.simpleName)
@@ -98,7 +136,7 @@ class ShizukuPrivileged(private val context: Context) : Privileged {
         val s = awaitService() ?: return false
         return withContext(Dispatchers.IO) {
             try {
-                s.deleteCache(packageName, userId)
+                s.deleteCache(packageName, userId).also { L.d("Shell", "deleteCache $packageName user $userId -> $it") }
             } catch (t: Throwable) {
                 dropService()
                 refresh()
@@ -125,7 +163,9 @@ class ShizukuPrivileged(private val context: Context) : Privileged {
         val orphans = RecentTasks.orphansToRestore(RecentTasks.parseRecents(exec("dumpsys activity recents").out), stopped)
         orphans.forEach { exec("am stack move-task $it ${RecentTasks.NO_SUCH_STACK} true") }
         val stacks = RecentTasks.stacksToRemove(RecentTasks.parseStacks(exec("am stack list").out), stopped)
-        return stacks.count { exec("am stack remove $it").ok }
+        return stacks.count { exec("am stack remove $it").ok }.also {
+            L.i("Recents", "removed $it stack(s) for $stopped (restored ${orphans.size} orphan card(s))")
+        }
     }
 
     private suspend fun awaitService(): IShellService? {

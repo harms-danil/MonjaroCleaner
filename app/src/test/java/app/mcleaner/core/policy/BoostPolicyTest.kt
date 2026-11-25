@@ -46,6 +46,25 @@ class BoostPolicyTest {
     }
 
     @Test
+    fun trimTargets_kept_running_apps_get_a_gentle_signal() {
+        val apps = listOf(
+            app("ru.yandex.yandexnavi"), // whitelisted, background
+            app("com.player"), // busy (playing)
+            app("com.ecarx.launcher2", system = true), // launcher
+            app("com.example.game"), // will be stopped instead
+            app("com.android.settings", system = true), // system: left alone
+            app("app.mcleaner"),
+            app("ru.yandex.music", running = false),
+        )
+        val c = ctx(whitelist = setOf("ru.yandex.yandexnavi", "ru.yandex.music"), busy = setOf("com.player")).copy(gentleTrim = true)
+        assertEquals(
+            listOf("ru.yandex.yandexnavi" to "MODERATE", "com.player" to "RUNNING_LOW", "com.ecarx.launcher2" to "RUNNING_LOW"),
+            BoostPolicy.trimTargets(apps, c),
+        )
+        assertEquals(emptyList<Pair<String, String>>(), BoostPolicy.trimTargets(apps, c.copy(gentleTrim = false)))
+    }
+
+    @Test
     fun userBackgroundApp_isCandidate() {
         assertEquals(listOf("com.example.game"), BoostPolicy.killCandidates(listOf(app("com.example.game")), ctx()))
     }

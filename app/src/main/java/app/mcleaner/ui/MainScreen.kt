@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Apps
+import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.CleaningServices
 import androidx.compose.material.icons.outlined.Settings
@@ -53,6 +54,7 @@ private enum class Tab(private val ru: String, private val en: String, val icon:
     OVERVIEW("Обзор", "Overview", Icons.Outlined.Speed),
     APPS("Приложения", "Apps", Icons.Outlined.Apps),
     CLEANUP("Очистка", "Cleanup", Icons.Outlined.CleaningServices),
+    MAINTENANCE("Обслуживание", "Maintenance", Icons.Outlined.Build),
     SETTINGS("Настройки", "Settings", Icons.Outlined.Settings),
     ABOUT("О программе", "About", Icons.Outlined.Info),
     ;
@@ -65,6 +67,7 @@ fun MainScreen() {
     val context = LocalContext.current
     var tab by rememberSaveable { mutableIntStateOf(0) }
     val shizuku by c.shizuku.state.collectAsStateWithLifecycle()
+    LaunchedEffect(tab) { app.mcleaner.core.log.L.i("UI", "tab ${Tab.entries[tab].name}") }
 
     var previous by remember { mutableIntStateOf(-1) }
     LaunchedEffect(shizuku) {
@@ -72,6 +75,7 @@ fun MainScreen() {
             c.apps.ensureGrants()
             runCatching { c.syncSettingsBackup() } // file access may have just been granted; I/O runs on Dispatchers.IO
             c.updates.cleanupStaged()
+            runCatching { c.backgroundLimiter.reapply(c.settings.current().noBackground) }
         }
         if (previous == ShizukuState.READY.ordinal && shizuku != ShizukuState.READY) {
             Toast.makeText(context, tr("Shizuku остановлен — базовый режим", "Shizuku stopped — basic mode"), Toast.LENGTH_LONG).show()
@@ -82,7 +86,7 @@ fun MainScreen() {
     Row(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         SideMenu(selected = tab, onSelect = { tab = it })
         Column(Modifier.weight(1f).fillMaxHeight().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (shizuku != ShizukuState.READY && tab != Tab.SETTINGS.ordinal && tab != Tab.ABOUT.ordinal) {
+            if (shizuku != ShizukuState.READY && tab != Tab.SETTINGS.ordinal && tab != Tab.ABOUT.ordinal && tab != Tab.MAINTENANCE.ordinal) {
                 FullModeBanner(shizuku) { tab = Tab.SETTINGS.ordinal }
             }
             Box(Modifier.weight(1f)) {
@@ -90,6 +94,7 @@ fun MainScreen() {
                     Tab.OVERVIEW -> OverviewScreen()
                     Tab.APPS -> AppsScreen()
                     Tab.CLEANUP -> CleanupScreen()
+                    Tab.MAINTENANCE -> app.mcleaner.ui.maintenance.MaintenanceScreen()
                     Tab.SETTINGS -> SettingsScreen()
                     Tab.ABOUT -> AboutScreen()
                 }

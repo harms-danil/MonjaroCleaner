@@ -1,5 +1,6 @@
 package app.mcleaner.ui.cleanup
 
+import app.mcleaner.core.log.L
 import app.mcleaner.core.i18n.tr
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -45,6 +46,7 @@ class CleanupViewModel(private val c: AppContainer) : ViewModel() {
         val inUse = ctx.busyPackages + listOfNotNull(ctx.launcherPackage, ctx.imePackage)
         val targets = BoostPolicy.cacheTargets(apps, whitelist, inUse)
         val result = c.cacheCleaner.clearMany(targets, c.apps.currentUser())
+        L.i("Cleanup", "clear all cache: ${targets.size} targets, cleared ${result.cleared}, per-app unsupported ${result.perPackageUnsupported}")
         if (result.perPackageUnsupported) {
             val ext = c.cacheCleaner.clearExternal(targets, android.os.Environment.getExternalStorageDirectory().path)
             _ui.value = _ui.value.copy(askTrimAll = true, externalCleared = ext)
@@ -60,6 +62,7 @@ class CleanupViewModel(private val c: AppContainer) : ViewModel() {
     fun confirmTrimAll() = work {
         _ui.value = _ui.value.copy(askTrimAll = false)
         val ok = c.cacheCleaner.trimAll()
+        L.i("Cleanup", "trim all caches: $ok")
         _ui.value = _ui.value.copy(message = if (ok) tr("Кэш всех приложений очищен", "All apps' cache cleared") else tr("Не удалось очистить кэш", "Could not clear cache"))
     }
 
@@ -70,6 +73,7 @@ class CleanupViewModel(private val c: AppContainer) : ViewModel() {
     fun scan() = work {
         val items = c.junkCleaner.scan(c.settings.current().whitelist)
         val grouped = items.groupBy { it.category }
+        L.i("Cleanup", "junk scan: " + grouped.entries.joinToString { (k, v) -> "$k ${v.size} items ${v.sumOf { it.sizeBytes }} B" })
         _ui.value = _ui.value.copy(scanned = true, junk = grouped, selected = JunkSelection.initial(grouped))
     }
 
@@ -95,6 +99,7 @@ class CleanupViewModel(private val c: AppContainer) : ViewModel() {
         val items = _ui.value.selectedItems
         _ui.value = _ui.value.copy(confirmDelete = false)
         val removed = c.junkCleaner.delete(items)
+        L.i("Cleanup", "junk delete: $removed of ${items.size}")
         _ui.value = _ui.value.copy(message = tr("Удалено: $removed из ${items.size}", "Deleted: $removed of ${items.size}"))
         val rescanned = c.junkCleaner.scan(c.settings.current().whitelist).groupBy { it.category }
         _ui.value = _ui.value.copy(junk = rescanned, selected = JunkSelection.retain(_ui.value.selected, rescanned))

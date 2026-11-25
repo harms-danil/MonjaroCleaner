@@ -1,5 +1,6 @@
 package app.mcleaner.update
 
+import app.mcleaner.core.log.L
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -13,6 +14,7 @@ import app.mcleaner.MainActivity
 class UpdateRelaunchReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) return
+        L.i("Update", "package replaced")
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val armedAt = prefs.getLong(KEY, 0L)
         prefs.edit().remove(KEY).apply()

@@ -1,5 +1,6 @@
 package app.mcleaner.auto
 
+import app.mcleaner.core.log.L
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -12,6 +13,7 @@ import kotlinx.coroutines.launch
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action !in BOOT_ACTIONS) return
+        L.i("Boot", "${intent.action}")
         val pending = goAsync()
         val app = context.applicationContext as MCleanerApp
         CoroutineScope(Dispatchers.IO).launch {

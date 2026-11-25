@@ -12,4 +12,7 @@ interface IShellService {
 
     /** Removes the given packages' tasks from Recents (the system «running apps» screen). Returns how many. */
     int removeTasks(in String[] packageNames, int userId) = 3;
+
+    /** Like exec, for long jobs (compiling apps, storage trim): own timeout, capped at 20 minutes. */
+    String execTimeout(String command, long timeoutMs) = 4;
 }

@@ -64,6 +64,10 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
 
     fun requestPermission() = c.shizuku.requestPermission()
 
+    fun setGentleTrim(on: Boolean) {
+        viewModelScope.launch { c.settings.setGentleTrim(on) }
+    }
+
     fun setKeepRunning(on: Boolean) {
         viewModelScope.launch {
             c.settings.setKeepRunning(on)

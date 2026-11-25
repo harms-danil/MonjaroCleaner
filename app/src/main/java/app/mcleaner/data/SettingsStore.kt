@@ -28,11 +28,19 @@ data class Settings(
     val shizukuAutostart: Boolean = false,
     /** Foreground service: started with the head unit, keeps MCleaner (and its watchers) running. */
     val keepRunning: Boolean = true,
+    /** «Мягкое ускорение»: apps that keep running are asked to free memory during a boost. */
+    val gentleTrim: Boolean = true,
+    /** «Без фона»: background work restricted (appops RUN_ANY_IN_BACKGROUND ignore). */
+    val noBackground: Set<String> = emptySet(),
+    /** Compile apps and trim storage once a week. */
+    val weeklyMaintenance: Boolean = false,
+    val lastMaintenanceMs: Long? = null,
 ) {
     fun toBackup() = BackupData(
         whitelist = whitelist, frozen = frozen, autoBoost = autoBoost, stopGoogle = stopGoogle,
         scheduleMinutes = scheduleMinutes, lowMemoryAlert = lowMemoryAlert, lowMemoryPercent = lowMemoryPercent,
         shizukuAutostart = shizukuAutostart, keepRunning = keepRunning,
+        gentleTrim = gentleTrim, noBackground = noBackground, weeklyMaintenance = weeklyMaintenance,
     )
 }
 
@@ -74,6 +82,17 @@ class SettingsStore(private val context: Context) {
 
     suspend fun setKeepRunning(on: Boolean) = userEdit { it[KEEP_RUNNING] = on }
 
+    suspend fun setGentleTrim(on: Boolean) = userEdit { it[GENTLE_TRIM] = on }
+
+    suspend fun setNoBackground(pkg: String, on: Boolean) = userEdit { p ->
+        val cur = p[NO_BACKGROUND] ?: emptySet()
+        p[NO_BACKGROUND] = if (on) cur + pkg else cur - pkg
+    }
+
+    suspend fun setWeeklyMaintenance(on: Boolean) = userEdit { it[WEEKLY_MAINT] = on }
+
+    suspend fun setLastMaintenance(ms: Long) = context.dataStore.edit { it[LAST_MAINT] = ms }
+
     /**
      * Import from a file (another car or an older export). The frozen list is not applied:
      * it describes which apps are disabled on that particular head unit.
@@ -87,6 +106,9 @@ class SettingsStore(private val context: Context) {
         p[LOW_MEM_PCT] = d.lowMemoryPercent
         p[SHIZUKU_AUTOSTART] = d.shizukuAutostart
         p[KEEP_RUNNING] = d.keepRunning
+        p[GENTLE_TRIM] = d.gentleTrim
+        p[NO_BACKGROUND] = d.noBackground
+        p[WEEKLY_MAINT] = d.weeklyMaintenance
         p[INITIALIZED] = true
     }
 
@@ -113,6 +135,9 @@ class SettingsStore(private val context: Context) {
             p[LOW_MEM_PCT] = backup.lowMemoryPercent
             p[SHIZUKU_AUTOSTART] = backup.shizukuAutostart
             p[KEEP_RUNNING] = backup.keepRunning
+            p[GENTLE_TRIM] = backup.gentleTrim
+            p[NO_BACKGROUND] = backup.noBackground
+            p[WEEKLY_MAINT] = backup.weeklyMaintenance
         }
         p[INITIALIZED] = true
     }
@@ -130,6 +155,10 @@ class SettingsStore(private val context: Context) {
         lowMemoryPercent = this[LOW_MEM_PCT] ?: 15,
         shizukuAutostart = this[SHIZUKU_AUTOSTART] ?: false,
         keepRunning = this[KEEP_RUNNING] ?: true,
+        gentleTrim = this[GENTLE_TRIM] ?: true,
+        noBackground = this[NO_BACKGROUND] ?: emptySet(),
+        weeklyMaintenance = this[WEEKLY_MAINT] ?: false,
+        lastMaintenanceMs = this[LAST_MAINT],
     )
 
     companion object {
@@ -156,5 +185,9 @@ class SettingsStore(private val context: Context) {
         private val LOW_MEM_PCT = intPreferencesKey("low_memory_percent")
         private val SHIZUKU_AUTOSTART = booleanPreferencesKey("shizuku_autostart")
         private val KEEP_RUNNING = booleanPreferencesKey("keep_running")
+        private val GENTLE_TRIM = booleanPreferencesKey("gentle_trim")
+        private val NO_BACKGROUND = stringSetPreferencesKey("no_background")
+        private val WEEKLY_MAINT = booleanPreferencesKey("weekly_maintenance")
+        private val LAST_MAINT = longPreferencesKey("last_maintenance")
     }
 }

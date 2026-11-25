@@ -60,6 +60,10 @@ data class BackupData(
     val shizukuAutostart: Boolean = false,
     /** Added in 1.6.0: run in the background and start with the head unit. Older files read as on. */
     val keepRunning: Boolean = true,
+    /** Added in 1.7.0. */
+    val gentleTrim: Boolean = true,
+    val noBackground: Set<String> = emptySet(),
+    val weeklyMaintenance: Boolean = false,
 )
 
 object SettingsBackup {
@@ -79,6 +83,9 @@ object SettingsBackup {
         .put("lowMemoryPercent", d.lowMemoryPercent)
         .put("shizukuAutostart", d.shizukuAutostart)
         .put("keepRunning", d.keepRunning)
+        .put("gentleTrim", d.gentleTrim)
+        .put("noBackground", JSONArray(d.noBackground.sorted()))
+        .put("weeklyMaintenance", d.weeklyMaintenance)
         .toString(2)
 
     fun decode(text: String): BackupData? = try {
@@ -96,6 +103,9 @@ object SettingsBackup {
                 lowMemoryPercent = o.optInt("lowMemoryPercent", 15).coerceIn(5, 50),
                 shizukuAutostart = o.optBoolean("shizukuAutostart", false),
                 keepRunning = o.optBoolean("keepRunning", true),
+                gentleTrim = o.optBoolean("gentleTrim", true),
+                noBackground = if (o.has("noBackground")) o.packages("noBackground") else emptySet(),
+                weeklyMaintenance = o.optBoolean("weeklyMaintenance", false),
             )
         }
     } catch (_: JSONException) {

@@ -1,5 +1,6 @@
 package app.mcleaner.auto
 
+import app.mcleaner.core.log.L
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
@@ -46,6 +47,7 @@ class WakeWatchService : Service() {
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            L.i("Watch", "wake: ${intent.action}")
             AutoBoostScheduler.schedule(context, AutoBoostGate.WAKE_DELAY_MS)
             // Shizuku can die while the unit sleeps (or with a system restart): bring it back.
             ShizukuAutostartWorker.enqueue(context, delayMs = 5_000)
@@ -54,6 +56,7 @@ class WakeWatchService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        L.i("Watch", "background service started")
         val type = if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0
         ServiceCompat.startForeground(this, NOTIFICATION_ID, ongoing(null), type)
         val filter = IntentFilter().apply {
@@ -95,6 +98,7 @@ class WakeWatchService : Service() {
     }
 
     private fun alert(freePercent: Int) {
+        L.i("Watch", "low memory alert: $freePercent% free")
         val boost = PendingIntent.getActivity(
             this, 1, BoostShortcutActivity.intent(this, BoostSource.LOW_MEMORY),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
@@ -139,6 +143,7 @@ class WakeWatchService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
 
     override fun onDestroy() {
+        L.i("Watch", "background service stopped")
         runCatching { unregisterReceiver(receiver) }
         scope.cancel()
         super.onDestroy()

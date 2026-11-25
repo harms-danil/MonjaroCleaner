@@ -94,6 +94,15 @@ class SettingsBackupTest {
         assertEquals(15, d.lowMemoryPercent)
         // Added in 1.6.0: background work is on unless a file says otherwise.
         assertTrue(d.keepRunning)
+        // Added in 1.7.0.
+        assertTrue(d.gentleTrim)
+        assertEquals(emptySet<String>(), d.noBackground)
+    }
+
+    @Test
+    fun `1_7_0 fields survive a round trip`() {
+        val data = BackupData(setOf("a.b"), emptySet(), autoBoost = false, stopGoogle = false, gentleTrim = false, noBackground = setOf("com.huawei.hwid"), weeklyMaintenance = true)
+        assertEquals(data, SettingsBackup.decode(SettingsBackup.encode(data)))
     }
 
     @Test

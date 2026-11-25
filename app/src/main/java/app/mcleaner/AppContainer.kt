@@ -13,6 +13,8 @@ import app.mcleaner.data.AppsRepository
 import app.mcleaner.data.HistoryStore
 import app.mcleaner.domain.BoostReport
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import app.mcleaner.core.log.L
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.sync.Mutex
@@ -45,6 +47,55 @@ class AppContainer(context: Context) {
     val shizukuInstaller = app.mcleaner.privileged.ShizukuInstaller(appContext)
     val adbAutostart = app.mcleaner.privileged.AdbAutostart(appContext)
 
+    val maintenance = app.mcleaner.domain.Maintenance(appContext, shizuku)
+    val backgroundLimiter = app.mcleaner.domain.BackgroundLimiter(shizuku)
+
+    /** Whitelist and the launcher fully (navigator, music, home screen), other user apps by profile. */
+    suspend fun compilePlan(
+        statuses: Map<String, String>,
+        installed: List<app.mcleaner.core.policy.InstalledApp>,
+    ): List<app.mcleaner.core.maintenance.CompileStep> {
+        val important = settings.current().whitelist + setOfNotNull(apps.launcherPackage())
+        val userApps = installed.filter { !it.isSystem }.map { it.packageName }.toSet() - appContext.packageName
+        return app.mcleaner.core.maintenance.Dexopt.plan(statuses, userApps, important)
+    }
+
+    val logExporter by lazy { app.mcleaner.domain.LogExporter(this, (appContext as MCleanerApp).logSink) }
+
+    /** Journal: state changes of Shizuku, updates and settings, as they happen. */
+    fun startJournalWatchers() {
+        appScope.launch { shizuku.state.collect { L.i("Shizuku", "state $it") } }
+        appScope.launch { updates.state.collect { L.i("Update", "state $it") } }
+        appScope.launch {
+            var before: app.mcleaner.data.Settings? = null
+            settings.settings.collect { s ->
+                val b = before
+                if (b == null) L.i("Settings", "loaded $s") else if (b != s) L.i("Settings", "changed ${settingsDiff(b, s)}")
+                before = s
+            }
+        }
+    }
+
+    private fun settingsDiff(a: app.mcleaner.data.Settings, b: app.mcleaner.data.Settings): String {
+        fun <T> field(name: String, f: (app.mcleaner.data.Settings) -> T): String? {
+            val x = f(a)
+            val y = f(b)
+            return when {
+                x == y -> null
+                x is Set<*> && y is Set<*> -> "$name +${y - x} -${x - y}"
+                else -> "$name $x -> $y"
+            }
+        }
+        return listOfNotNull(
+            field("whitelist") { it.whitelist }, field("frozen") { it.frozen }, field("noBackground") { it.noBackground },
+            field("autoBoost") { it.autoBoost }, field("stopGoogle") { it.stopGoogle }, field("scheduleMinutes") { it.scheduleMinutes },
+            field("lowMemoryAlert") { it.lowMemoryAlert }, field("lowMemoryPercent") { it.lowMemoryPercent },
+            field("shizukuAutostart") { it.shizukuAutostart }, field("keepRunning") { it.keepRunning }, field("gentleTrim") { it.gentleTrim },
+            field("weeklyMaintenance") { it.weeklyMaintenance }, field("lastMaintenanceMs") { it.lastMaintenanceMs },
+            field("lastAutoBoostMs") { it.lastAutoBoostMs },
+        ).joinToString("; ")
+    }
+
     /** Outlives activities: boosts started from the home-screen icon, widget or notification. */
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -52,7 +103,19 @@ class AppContainer(context: Context) {
 
     /** Every boost goes through here so that it lands in the history. One at a time. */
     suspend fun runBoost(source: BoostSource): BoostReport = boostLock.withLock {
-        val report = boost.run(clearCache = source != BoostSource.SCHEDULE)
+        L.i("Boost", "start, source $source, Shizuku ${shizuku.state.value}")
+        val t0 = android.os.SystemClock.elapsedRealtime()
+        val report = try {
+            boost.run(clearCache = source != BoostSource.SCHEDULE)
+        } catch (e: Exception) {
+            L.e("Boost", "failed", e)
+            throw e
+        }
+        L.i(
+            "Boost",
+            "done in ${android.os.SystemClock.elapsedRealtime() - t0} ms: stopped ${report.stoppedPackages}, failed ${report.failed}, " +
+                "freed RAM ${report.freedRamKb} KB, cache ${report.freedCacheBytes} B, full ${report.fullMode}, protection unknown ${report.protectionUnavailable}",
+        )
         history.add(
             BoostRecord(
                 timeMs = System.currentTimeMillis(),
@@ -70,6 +133,7 @@ class AppContainer(context: Context) {
         val s = settings.current()
         if (LowMemoryGate.serviceNeeded(s.autoBoost, s.lowMemoryAlert, s.keepRunning)) WakeWatchService.start(appContext) else WakeWatchService.stop(appContext)
         AutoBoostScheduler.schedulePeriodic(appContext, s.scheduleMinutes)
+        app.mcleaner.auto.MaintenanceWorker.schedule(appContext, s.weeklyMaintenance)
     }
 
     /**
@@ -121,6 +185,7 @@ class AppContainer(context: Context) {
             selfPackage = appContext.packageName,
             busyPackages = busy.packages + apps.carUsabilityPackages(),
             busyKnown = busy.known,
+            gentleTrim = s.gentleTrim,
         )
     }
 }

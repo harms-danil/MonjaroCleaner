@@ -13,6 +13,8 @@ data class BoostContext(
     val busyPackages: Set<String>,
     /** False when the busy probe failed: then nothing may be force-stopped (fail closed). */
     val busyKnown: Boolean = true,
+    /** «Мягкое ускорение»: ask apps that keep running to drop their in-memory caches. */
+    val gentleTrim: Boolean = false,
 )
 
 /** Why «Ускорить» leaves a running app alone (shown in the boost preview). */
@@ -49,6 +51,22 @@ object BoostPolicy {
         val pkg = app.packageName
         return !app.isSystem && pkg !in GOOGLE_PACKAGES && pkg != selfPackage &&
             pkg != SHIZUKU_PACKAGE && !isCarSystem(pkg) && pkg !in whitelist && pkg !in protectedPackages
+    }
+
+    /**
+     * Running apps that stay (whitelist, busy, launcher, keyboard) and the `am send-trim-memory` level for each:
+     * RUNNING_LOW for what is in use right now (keeps working, drops caches), MODERATE for background ones.
+     * System apps, Google and MCleaner/Shizuku are not signalled.
+     */
+    fun trimTargets(apps: List<AppInfo>, ctx: BoostContext): List<Pair<String, String>> {
+        if (!ctx.gentleTrim) return emptyList()
+        return apps.filter { it.isRunning }.mapNotNull { a ->
+            when (skipReason(a, ctx)) {
+                SkipReason.IN_USE -> a.packageName to "RUNNING_LOW"
+                SkipReason.WHITELIST -> a.packageName to if (a.packageName in ctx.busyPackages) "RUNNING_LOW" else "MODERATE"
+                else -> null
+            }
+        }
     }
 
     /** Null when full-mode «Ускорить» would stop [app]; otherwise why it stays. */

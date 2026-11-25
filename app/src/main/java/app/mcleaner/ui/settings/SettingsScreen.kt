@@ -98,6 +98,15 @@ fun SettingsScreen() {
                     onChange = vm::setAutoBoost,
                 )
                 SwitchRow(
+                    title = tr("Мягкое ускорение", "Gentle boost"),
+                    subtitle = tr(
+                        "Приложения, которые «Ускорить» не останавливает (навигатор, музыка, лаунчер, белый список), получают просьбу освободить память. Они продолжают работать, маршрут и музыка не прерываются.",
+                        "Apps that Boost does not stop (navigator, music, launcher, whitelist) are asked to free memory. They keep running; route and music are not interrupted.",
+                    ),
+                    checked = settings?.gentleTrim != false,
+                    onChange = vm::setGentleTrim,
+                )
+                SwitchRow(
                     title = tr("Останавливать Google-сервисы", "Stop Google services"),
                     subtitle = tr("Освобождает больше памяти, но Google-сервисы сразу перезапускаются, а Play и зависящие от него приложения могут сбоить.", "Frees more memory, but Google services restart right away, and Play and apps that depend on it may misbehave."),
                     checked = settings?.stopGoogle == true,

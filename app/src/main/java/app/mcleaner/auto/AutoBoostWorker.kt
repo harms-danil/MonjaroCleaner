@@ -1,5 +1,6 @@
 package app.mcleaner.auto
 
+import app.mcleaner.core.log.L
 import app.mcleaner.core.i18n.tr
 import android.app.NotificationManager
 import android.content.Context
@@ -23,6 +24,7 @@ class AutoBoostWorker(context: Context, params: WorkerParameters) : CoroutineWor
         val source = inputData.getString(AutoBoostScheduler.KEY_SOURCE)
             ?.let { s -> BoostSource.entries.firstOrNull { it.name == s } } ?: BoostSource.AUTO
         val enabled = if (source == BoostSource.SCHEDULE) settings.scheduleMinutes > 0 else settings.autoBoost
+        L.i("AutoBoost", "worker run: source $source, enabled $enabled, attempt $runAttemptCount")
         if (!enabled) return Result.success()
 
         c.shizuku.refresh()
@@ -31,7 +33,10 @@ class AutoBoostWorker(context: Context, params: WorkerParameters) : CoroutineWor
         } != null
 
         val now = System.currentTimeMillis()
-        if (!AutoBoostGate.shouldRun(now, settings.lastAutoBoostMs, enabled, ready)) return Result.success()
+        if (!AutoBoostGate.shouldRun(now, settings.lastAutoBoostMs, enabled, ready)) {
+            L.i("AutoBoost", "skipped: Shizuku ready $ready, last run ${settings.lastAutoBoostMs}")
+            return Result.success()
+        }
 
         c.settings.setLastAutoBoost(now)
         val report = c.runBoost(source)

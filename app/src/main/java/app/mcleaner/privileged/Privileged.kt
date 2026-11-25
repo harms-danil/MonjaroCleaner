@@ -14,6 +14,9 @@ interface Privileged {
 
     /** Removes these packages' tasks from Recents, so a stopped app no longer shows as running. */
     suspend fun removeTasks(packageNames: Collection<String>, userId: Int): Int = 0
+
+    /** For long jobs: compiling apps, storage trim. */
+    suspend fun execLong(command: String, timeoutMs: Long): ShellResult = exec(command)
 }
 
 object NoPrivileged : Privileged {

@@ -48,6 +48,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        app.mcleaner.core.log.L.i("UI", "app opened")
         (application as MCleanerApp).container.shizuku.refresh()
+    }
+
+    override fun onPause() {
+        app.mcleaner.core.log.L.i("UI", "app hidden")
+        super.onPause()
     }
 }

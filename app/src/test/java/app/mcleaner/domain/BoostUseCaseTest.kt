@@ -66,6 +66,17 @@ class BoostUseCaseTest {
     }
 
     @Test
+    fun fullMode_gentlyTrimsKeptApps() {
+        kotlinx.coroutines.test.runTest {
+            val fake = FakePrivileged()
+            val report = useCase(fake, listOf(app("ru.yandex.yandexnavi"), app("com.example.game")), context = ctx.copy(gentleTrim = true)).run()
+            assertTrue("am send-trim-memory 'ru.yandex.yandexnavi' MODERATE" in fake.calls)
+            assertTrue(fake.calls.none { "send-trim-memory 'com.example.game'" in it })
+            assertEquals(1, report.trimmed)
+        }
+    }
+
+    @Test
     fun shizukuDiesMidway_reportsFailures() = runTest {
         val fake = FakePrivileged(dieAfterCalls = 1)
         val apps = listOf(app("com.a"), app("com.b"), app("com.c"))
