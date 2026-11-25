@@ -16,6 +16,20 @@ class BoostHistoryTest {
     }
 
     @Test
+    fun `new record goes first even when the clock went back`() {
+        // Head unit clocks reset to 2015 or jump: order is by arrival, not by time.
+        var list = BoostHistory.append(emptyList(), rec(1_700_000_000_000))
+        list = BoostHistory.append(list, rec(1_420_000_000_000))
+        assertEquals(listOf(1_420_000_000_000L, 1_700_000_000_000L), list.map { it.timeMs })
+    }
+
+    @Test
+    fun `decode keeps file order`() {
+        val list = listOf(rec(1), rec(3), rec(2))
+        assertEquals(listOf(1L, 3L, 2L), BoostHistory.decode(BoostHistory.encode(list)).map { it.timeMs })
+    }
+
+    @Test
     fun `json round trip, broken file gives empty history`() {
         val list = listOf(rec(2, 500, listOf("a.b"), BoostSource.SCHEDULE), rec(1, 300, emptyList(), BoostSource.LOW_MEMORY))
         assertEquals(list, BoostHistory.decode(BoostHistory.encode(list)))

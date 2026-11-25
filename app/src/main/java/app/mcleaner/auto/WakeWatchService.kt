@@ -10,6 +10,7 @@ import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -35,7 +36,8 @@ import java.io.File
 /**
  * Background watcher (foreground service), runs while auto-boost or the low-memory alert is on:
  * - a dynamic receiver for screen-on / user-present (can't be declared in the manifest) → auto-boost;
- * - every 30 s a look at /proc/meminfo → «Мало памяти» notification with a «Ускорить» button.
+ * - every 30 s a look at /proc/meminfo → «Мало памяти» notification with a «Ускорить» button
+ *   once memory has stayed low for a minute (see [LowMemoryGate.shouldAlert]).
  */
 class WakeWatchService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -75,12 +77,15 @@ class WakeWatchService : Service() {
     }
 
     private suspend fun watchMemory(thresholdPercent: Int) {
+        var streak: LowMemoryGate.LowStreak? = null
         while (scope.isActive) {
             val mem = runCatching { MemInfoParser.parse(File("/proc/meminfo").readText()) }.getOrNull()
             if (mem != null) {
                 val free = LowMemoryGate.freePercent(mem.totalKb, mem.availableKb)
-                val now = System.currentTimeMillis()
-                if (LowMemoryGate.shouldAlert(free, thresholdPercent, lastAlertMs, now)) {
+                // Monotonic: the head unit wall clock is often wrong or jumps after GPS/network sync.
+                val now = SystemClock.elapsedRealtime()
+                streak = LowMemoryGate.track(streak, free, thresholdPercent, now)
+                if (LowMemoryGate.shouldAlert(streak, lastAlertMs, now)) {
                     lastAlertMs = now
                     alert(free)
                 }

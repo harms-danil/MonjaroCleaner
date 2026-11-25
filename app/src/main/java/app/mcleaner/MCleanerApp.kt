@@ -22,14 +22,16 @@ class MCleanerApp : Application() {
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel(CHANNEL_RESULT, tr("Результат автоускорения", "Auto-boost result"), NotificationManager.IMPORTANCE_LOW))
         nm.createNotificationChannel(NotificationChannel(CHANNEL_WATCH, tr("Слежение за пробуждением", "Wake watching"), NotificationManager.IMPORTANCE_MIN))
-        nm.createNotificationChannel(NotificationChannel(CHANNEL_ALERT, tr("Мало памяти", "Low memory"), NotificationManager.IMPORTANCE_DEFAULT))
+        nm.createNotificationChannel(NotificationChannel(CHANNEL_ALERT, tr("Мало памяти", "Low memory"), NotificationManager.IMPORTANCE_LOW)) // no sound while driving
 
         // Settings backup in /sdcard/MCleaner: restore on first run, then rewrite on every change.
         val c = container
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            c.syncSettingsBackup()
+            runCatching { c.syncSettingsBackup() }
             c.settings.settings.map { it.toBackup() }.distinctUntilChanged().drop(1).collect {
-                if (c.settings.isInitialized()) c.folder.writeBackup(it)
+                // Not the collected value: syncSettingsBackup snapshots the settings under the write lock,
+                // so overlapping writers cannot put an older state over a newer one.
+                runCatching { c.syncSettingsBackup() }
             }
         }
     }

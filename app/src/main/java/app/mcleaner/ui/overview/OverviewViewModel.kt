@@ -1,6 +1,9 @@
 package app.mcleaner.ui.overview
 
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
+import app.mcleaner.core.i18n.tr
+import kotlinx.coroutines.CancellationException
 import androidx.lifecycle.viewModelScope
 import app.mcleaner.AppContainer
 import app.mcleaner.core.history.BoostSource
@@ -56,9 +59,21 @@ class OverviewViewModel(private val c: AppContainer) : ViewModel() {
         if (_ui.value.boosting) return
         _ui.value = _ui.value.copy(boosting = true)
         viewModelScope.launch {
-            val report = c.runBoost(BoostSource.MANUAL)
-            app.mcleaner.auto.BoostWidget.refresh(c.appContext, report)
-            _ui.value = _ui.value.copy(boosting = false, report = report)
+            try {
+                val report = c.runBoost(BoostSource.MANUAL)
+                _ui.value = _ui.value.copy(report = report)
+                app.mcleaner.auto.BoostWidget.refresh(c.appContext, report)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Toast.makeText(
+                    c.appContext,
+                    tr("Не удалось ускорить: ${e.message ?: e.javaClass.simpleName}", "Boost failed: ${e.message ?: e.javaClass.simpleName}"),
+                    Toast.LENGTH_LONG,
+                ).show()
+            } finally {
+                _ui.value = _ui.value.copy(boosting = false)
+            }
             refresh()
         }
     }

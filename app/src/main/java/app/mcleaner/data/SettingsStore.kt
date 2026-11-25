@@ -1,6 +1,7 @@
 package app.mcleaner.data
 
 import android.content.Context
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -41,22 +42,31 @@ class SettingsStore(private val context: Context) {
 
     suspend fun current(): Settings = settings.first()
 
-    suspend fun setWhitelisted(pkg: String, on: Boolean) = context.dataStore.edit { p ->
+    /**
+     * A change made by the user. Also marks the install initialized: a backup restored later (once storage
+     * access appears) must not overwrite what the user has already chosen on this install.
+     */
+    private suspend fun userEdit(block: (MutablePreferences) -> Unit) = context.dataStore.edit { p ->
+        block(p)
+        p[INITIALIZED] = true
+    }
+
+    suspend fun setWhitelisted(pkg: String, on: Boolean) = userEdit { p ->
         val cur = p[WHITELIST] ?: DEFAULT_WHITELIST
         p[WHITELIST] = if (on) cur + pkg else cur - pkg
     }
 
-    suspend fun resetWhitelist() = context.dataStore.edit { it[WHITELIST] = DEFAULT_WHITELIST }
+    suspend fun resetWhitelist() = userEdit { it[WHITELIST] = DEFAULT_WHITELIST }
 
-    suspend fun setAutoBoost(on: Boolean) = context.dataStore.edit { it[AUTO_BOOST] = on }
+    suspend fun setAutoBoost(on: Boolean) = userEdit { it[AUTO_BOOST] = on }
 
-    suspend fun setStopGoogle(on: Boolean) = context.dataStore.edit { it[STOP_GOOGLE] = on }
+    suspend fun setStopGoogle(on: Boolean) = userEdit { it[STOP_GOOGLE] = on }
 
-    suspend fun setScheduleMinutes(minutes: Int) = context.dataStore.edit { it[SCHEDULE_MIN] = minutes }
+    suspend fun setScheduleMinutes(minutes: Int) = userEdit { it[SCHEDULE_MIN] = minutes }
 
-    suspend fun setLowMemoryAlert(on: Boolean) = context.dataStore.edit { it[LOW_MEM] = on }
+    suspend fun setLowMemoryAlert(on: Boolean) = userEdit { it[LOW_MEM] = on }
 
-    suspend fun setLowMemoryPercent(percent: Int) = context.dataStore.edit { it[LOW_MEM_PCT] = percent }
+    suspend fun setLowMemoryPercent(percent: Int) = userEdit { it[LOW_MEM_PCT] = percent }
 
     suspend fun setShizukuAutostart(on: Boolean) = context.dataStore.edit { it[SHIZUKU_AUTOSTART] = on }
 
@@ -75,19 +85,22 @@ class SettingsStore(private val context: Context) {
         p[INITIALIZED] = true
     }
 
-    suspend fun addFrozen(pkg: String) = context.dataStore.edit { it[FROZEN] = (it[FROZEN] ?: emptySet()) + pkg }
+    suspend fun addFrozen(pkg: String) = userEdit { it[FROZEN] = (it[FROZEN] ?: emptySet()) + pkg }
 
-    suspend fun removeFrozen(pkg: String) = context.dataStore.edit { it[FROZEN] = (it[FROZEN] ?: emptySet()) - pkg }
+    suspend fun removeFrozen(pkg: String) = userEdit { it[FROZEN] = (it[FROZEN] ?: emptySet()) - pkg }
 
     /** Whether this install already took its settings (from the backup file or as defaults). */
     suspend fun isInitialized(): Boolean = context.dataStore.data.first()[INITIALIZED] == true
 
-    /** First run of this install: take settings from the backup (if any) and mark the install initialized. */
+    /**
+     * First run of this install: take settings from the backup (if any) and mark the install initialized.
+     * The frozen list is not restored: settings.json is on shared storage (writable by other apps on Android 9),
+     * so which apps are disabled must come only from this install's own actions.
+     */
     suspend fun initialize(backup: BackupData?) = context.dataStore.edit { p ->
         if (p[INITIALIZED] == true) return@edit
         if (backup != null) {
             p[WHITELIST] = backup.whitelist
-            p[FROZEN] = backup.frozen
             p[AUTO_BOOST] = backup.autoBoost
             p[STOP_GOOGLE] = backup.stopGoogle
             p[SCHEDULE_MIN] = backup.scheduleMinutes

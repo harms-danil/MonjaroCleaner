@@ -21,9 +21,12 @@ data class HistorySummary(val count: Int, val freedRamKb: Long, val freedCacheBy
 object BoostHistory {
     const val MAX_RECORDS = 200
 
-    /** Newest first, at most [max] records. */
+    /**
+     * Latest first, at most [max] records. Ordered by arrival, not by [BoostRecord.timeMs]:
+     * the head unit clock is often wrong or resets, so a sort would bury new boosts or drop them on the cap.
+     */
     fun append(list: List<BoostRecord>, record: BoostRecord, max: Int = MAX_RECORDS): List<BoostRecord> =
-        (listOf(record) + list).sortedByDescending { it.timeMs }.take(max)
+        (listOf(record) + list).take(max)
 
     /** Apps stopped most often, with how many times. */
     fun topStopped(list: List<BoostRecord>, limit: Int): List<Pair<String, Int>> =

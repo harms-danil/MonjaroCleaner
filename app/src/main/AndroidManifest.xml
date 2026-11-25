@@ -52,7 +52,9 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
-        <!-- Second home-screen icon «Ускорить»: boosts without opening the app. -->
+        <!-- Second home-screen icon «Ускорить»: boosts without opening the app.
+             No VIEW filter: the long-press shortcut (res/xml/shortcuts.xml) names this class explicitly,
+             and the widget/notification use explicit intents. -->
         <activity
             android:name=".auto.BoostShortcutActivity"
             android:excludeFromRecents="true"
@@ -65,10 +67,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
 

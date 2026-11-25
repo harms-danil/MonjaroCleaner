@@ -128,14 +128,10 @@ fi
       starter="$apk_dir/lib/$abi/libshizuku.so"; break
     fi
   done
-  if [[ -n "$starter" ]]; then
-    dsh "$starter" || true
-  else
-    # Старый способ: скрипт, который Shizuku создаёт после первого открытия.
-    dsh am start -n "$SHIZUKU/moe.shizuku.manager.MainActivity" >/dev/null 2>&1 || true
-    sleep 3
-    dsh sh /storage/emulated/0/Android/data/$SHIZUKU/start.sh || true
-  fi
+  # Только стартер из каталога APK (system-owned). start.sh в /sdcard/Android/data не запускаем:
+  # на Android 9 его может переписать любое приложение с доступом к памяти, а выполнился бы он от shell.
+  [[ -n "$starter" ]] || die "Не найден стартер Shizuku ($apk_dir/lib/{arm64,arm}/libshizuku.so). Обновите Shizuku до 13.x (запустите скрипт без --start-only) или запустите его вручную: Shizuku → «Запуск через подключение к компьютеру»."
+  dsh "$starter" || true
   sleep 2
   shizuku_running || die "Shizuku не запустился. Откройте Shizuku на магнитоле и посмотрите команду в «Запуск через подключение к компьютеру»."
   ok "Shizuku запущен"
