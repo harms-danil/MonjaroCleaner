@@ -5,6 +5,7 @@ import android.content.Context
 import app.mcleaner.core.junk.JunkScanner
 import app.mcleaner.core.policy.BoostContext
 import app.mcleaner.data.AppsRepository
+import app.mcleaner.data.MCleanerFolder
 import app.mcleaner.data.SettingsStore
 import app.mcleaner.data.SystemStatsRepository
 import app.mcleaner.domain.BoostUseCase
@@ -23,7 +24,21 @@ class AppContainer(context: Context) {
     val apps = AppsRepository(appContext, shizuku)
     val cacheCleaner = CacheCleaner(shizuku)
     val junkCleaner = JunkCleaner(shizuku, JunkScanner())
-    val updates = UpdateManager(appContext, shizuku)
+    val folder = MCleanerFolder(appContext, apps::hasAllFilesAccess)
+    val updates = UpdateManager(appContext, shizuku, folder)
+
+    /**
+     * Restores settings from `/sdcard/MCleaner/settings.json` on the first run of an install.
+     * Waits (does nothing) while there is no file access, so a reinstall without access cannot wipe the backup.
+     * Safe to call repeatedly: at start and whenever access may have appeared (Shizuku granted).
+     */
+    suspend fun syncSettingsBackup() {
+        if (!settings.isInitialized()) {
+            val read = folder.readBackup() ?: return
+            settings.initialize(read.getOrNull())
+        }
+        folder.writeBackup(settings.current().toBackup())
+    }
 
     val freezeManager = FreezeManager(
         privileged = shizuku,

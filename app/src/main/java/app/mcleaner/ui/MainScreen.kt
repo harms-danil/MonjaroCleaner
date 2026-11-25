@@ -58,7 +58,10 @@ fun MainScreen() {
 
     var previous by remember { mutableIntStateOf(-1) }
     LaunchedEffect(shizuku) {
-        if (shizuku == ShizukuState.READY) c.apps.ensureGrants()
+        if (shizuku == ShizukuState.READY) {
+            c.apps.ensureGrants()
+            c.syncSettingsBackup() // file access may have just been granted
+        }
         if (previous == ShizukuState.READY.ordinal && shizuku != ShizukuState.READY) {
             Toast.makeText(context, "Shizuku остановлен — базовый режим", Toast.LENGTH_LONG).show()
         }

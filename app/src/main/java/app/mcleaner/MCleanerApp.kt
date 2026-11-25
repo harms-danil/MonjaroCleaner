@@ -3,6 +3,13 @@ package app.mcleaner
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 class MCleanerApp : Application() {
     lateinit var container: AppContainer
@@ -14,6 +21,15 @@ class MCleanerApp : Application() {
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel(CHANNEL_RESULT, "Результат автоускорения", NotificationManager.IMPORTANCE_LOW))
         nm.createNotificationChannel(NotificationChannel(CHANNEL_WATCH, "Слежение за пробуждением", NotificationManager.IMPORTANCE_MIN))
+
+        // Settings backup in /sdcard/MCleaner: restore on first run, then rewrite on every change.
+        val c = container
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            c.syncSettingsBackup()
+            c.settings.settings.map { it.toBackup() }.distinctUntilChanged().drop(1).collect {
+                if (c.settings.isInitialized()) c.folder.writeBackup(it)
+            }
+        }
     }
 
     companion object {

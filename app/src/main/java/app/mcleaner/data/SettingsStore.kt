@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import app.mcleaner.core.update.BackupData
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -17,7 +18,9 @@ data class Settings(
     val stopGoogle: Boolean,
     val frozen: Set<String>,
     val lastAutoBoostMs: Long?,
-)
+) {
+    fun toBackup() = BackupData(whitelist = whitelist, frozen = frozen, autoBoost = autoBoost, stopGoogle = stopGoogle)
+}
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
 
@@ -41,6 +44,21 @@ class SettingsStore(private val context: Context) {
     suspend fun addFrozen(pkg: String) = context.dataStore.edit { it[FROZEN] = (it[FROZEN] ?: emptySet()) + pkg }
 
     suspend fun removeFrozen(pkg: String) = context.dataStore.edit { it[FROZEN] = (it[FROZEN] ?: emptySet()) - pkg }
+
+    /** Whether this install already took its settings (from the backup file or as defaults). */
+    suspend fun isInitialized(): Boolean = context.dataStore.data.first()[INITIALIZED] == true
+
+    /** First run of this install: take settings from the backup (if any) and mark the install initialized. */
+    suspend fun initialize(backup: BackupData?) = context.dataStore.edit { p ->
+        if (p[INITIALIZED] == true) return@edit
+        if (backup != null) {
+            p[WHITELIST] = backup.whitelist
+            p[FROZEN] = backup.frozen
+            p[AUTO_BOOST] = backup.autoBoost
+            p[STOP_GOOGLE] = backup.stopGoogle
+        }
+        p[INITIALIZED] = true
+    }
 
     suspend fun setLastAutoBoost(ms: Long) = context.dataStore.edit { it[LAST_AUTO] = ms }
 
@@ -69,5 +87,6 @@ class SettingsStore(private val context: Context) {
         private val STOP_GOOGLE = booleanPreferencesKey("stop_google")
         private val FROZEN = stringSetPreferencesKey("frozen")
         private val LAST_AUTO = longPreferencesKey("last_auto_boost")
+        private val INITIALIZED = booleanPreferencesKey("initialized")
     }
 }
