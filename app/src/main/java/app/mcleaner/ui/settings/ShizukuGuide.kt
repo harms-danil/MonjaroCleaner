@@ -1,5 +1,6 @@
 package app.mcleaner.ui.settings
 
+import app.mcleaner.core.i18n.tr
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -37,19 +38,19 @@ const val SHIZUKU_ADB_COMMAND = "adb shell sh /sdcard/Android/data/moe.shizuku.p
 
 private data class GuideStep(val text: String, val snippet: String? = null, val isLink: Boolean = false)
 
-private val STEPS = listOf(
-    GuideStep("Включите режим разработчика: Настройки → О системе → 7 раз нажмите «Номер сборки» (на Monjaro путь может отличаться, иногда нужен инженерный пароль)."),
-    GuideStep("Установите Shizuku: скачайте APK (файл shizuku-…-release.apk) со страницы релизов и установите. Можно открыть ссылку здесь или скопировать её.", SHIZUKU_RELEASES_URL, isLink = true),
-    GuideStep("Запустите Shizuku с ноутбука по ADB (на Android 9 нет «Беспроводной отладки», поэтому нужен ноутбук). Команда:", SHIZUKU_ADB_COMMAND),
-    GuideStep("Вернитесь в MCleaner и нажмите «Запросить разрешение», затем разрешите доступ."),
-    GuideStep("После полной перезагрузки магнитолы Shizuku нужно запустить заново (шаг 3). Если магнитола просто «спала» — он продолжает работать."),
+private fun steps() = listOf(
+    GuideStep(tr("Включите режим разработчика: Настройки → О системе → 7 раз нажмите «Номер сборки» (на Monjaro путь может отличаться, иногда нужен инженерный пароль).", "Enable developer mode: Settings → About → tap \"Build number\" 7 times (on Monjaro the path may differ; sometimes an engineering password is required).")),
+    GuideStep(tr("Установите Shizuku: скачайте APK (файл shizuku-…-release.apk) со страницы релизов и установите. Можно открыть ссылку здесь или скопировать её.", "Install Shizuku: download the APK (shizuku-…-release.apk) from the releases page and install it. You can open the link here or copy it."), SHIZUKU_RELEASES_URL, isLink = true),
+    GuideStep(tr("Запустите Shizuku с ноутбука по ADB (на Android 9 нет «Беспроводной отладки», поэтому нужен ноутбук). Команда:", "Start Shizuku from a laptop over ADB (Android 9 has no Wireless debugging, so a laptop is needed). Command:"), SHIZUKU_ADB_COMMAND),
+    GuideStep(tr("Вернитесь в MCleaner и нажмите «Запросить разрешение», затем разрешите доступ.", "Return to MCleaner, tap \"Request permission\", then grant access.")),
+    GuideStep(tr("После полной перезагрузки магнитолы Shizuku нужно запустить заново (шаг 3). Если магнитола просто «спала» — он продолжает работать.", "After a full head unit reboot, Shizuku must be started again (step 3). If the head unit was just asleep, it keeps running.")),
 )
 
 @Composable
 fun ShizukuGuide(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        STEPS.forEachIndexed { i, step ->
+        steps().forEachIndexed { i, step ->
             Text("${i + 1}. ${step.text}")
             step.snippet?.let { snippet ->
                 Row(
@@ -63,12 +64,12 @@ fun ShizukuGuide(modifier: Modifier = Modifier) {
                     if (step.isLink) {
                         TextButton(onClick = { openLink(context, snippet) }, modifier = Modifier.heightIn(min = MinTouch)) {
                             Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null)
-                            Text(" Открыть")
+                            Text(tr(" Открыть", " Open"))
                         }
                     }
                     TextButton(onClick = { copy(context, snippet) }, modifier = Modifier.heightIn(min = MinTouch)) {
                         Icon(Icons.Outlined.ContentCopy, contentDescription = null)
-                        Text(" Копировать")
+                        Text(tr(" Копировать", " Copy"))
                     }
                 }
             }
@@ -78,7 +79,7 @@ fun ShizukuGuide(modifier: Modifier = Modifier) {
 
 private fun copy(context: Context, text: String) {
     context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("MCleaner", text))
-    Toast.makeText(context, "Скопировано", Toast.LENGTH_SHORT).show()
+    Toast.makeText(context, tr("Скопировано", "Copied"), Toast.LENGTH_SHORT).show()
 }
 
 private fun openLink(context: Context, url: String) {
@@ -86,6 +87,6 @@ private fun openLink(context: Context, url: String) {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     } catch (_: ActivityNotFoundException) {
         context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("MCleaner", url))
-        Toast.makeText(context, "Браузер не найден — ссылка скопирована", Toast.LENGTH_LONG).show()
+        Toast.makeText(context, tr("Браузер не найден — ссылка скопирована", "No browser found — link copied"), Toast.LENGTH_LONG).show()
     }
 }

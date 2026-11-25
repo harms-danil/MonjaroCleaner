@@ -1,5 +1,6 @@
 package app.mcleaner.update
 
+import app.mcleaner.core.i18n.tr
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -136,7 +137,7 @@ class UpdateManager(
     private fun start(release: ReleaseInfo, rollback: Boolean) {
         if (busy()) return
         if (rollback && !privileged.isAvailable) {
-            _state.value = UpdateState.Failed(release, "Установить старую версию можно только с запущенным Shizuku")
+            _state.value = UpdateState.Failed(release, tr("Установить старую версию можно только с запущенным Shizuku", "Older versions can only be installed while Shizuku is running"))
             return
         }
         _rollback.value = rollback
@@ -158,7 +159,7 @@ class UpdateManager(
     /** A successful install kills MCleaner before it can delete the staged copy: remove it on the next start. */
     suspend fun cleanupStaged() {
         val installing = _state.value.let { it is UpdateState.Downloading || it is UpdateState.Installing }
-        if (privileged.isAvailable && !installing) privileged.exec("rm -f $TMP/mcleaner-update.apk")
+        if (privileged.isAvailable && !installing) privileged.exec("rm -f $TMP/mcleaner-update.apk $TMP/mcleaner-install.txt")
     }
 
     /** Called by [UpdateInstallReceiver] with the system installer's verdict. */
@@ -167,7 +168,7 @@ class UpdateManager(
         if (status != PackageInstaller.STATUS_SUCCESS) {
             _state.value = UpdateState.Failed(
                 release,
-                if (status == PackageInstaller.STATUS_FAILURE_ABORTED) "Установка отменена" else "Не удалось установить: ${message ?: "ошибка $status"}",
+                if (status == PackageInstaller.STATUS_FAILURE_ABORTED) tr("Установка отменена", "Installation cancelled") else tr("Не удалось установить: ${message ?: "ошибка $status"}", "Could not install: ${message ?: "error $status"}"),
             )
         }
     }
@@ -189,7 +190,7 @@ class UpdateManager(
             _versions.value = VersionsState(
                 loading = false,
                 entries = VersionCatalog.merge(local, remote.getOrDefault(emptyList()), currentVersion),
-                note = remote.exceptionOrNull()?.let { "Показаны только версии на устройстве. ${describe(it)}" },
+                note = remote.exceptionOrNull()?.let { tr("Показаны только версии на устройстве. ${describe(it)}", "Only versions on the device are shown. ${describe(it)}") },
             )
         }
     }
@@ -227,7 +228,7 @@ class UpdateManager(
     private suspend fun obtain(release: ReleaseInfo): File {
         val apk = apkFile(release.version)
         if (apk.isFile && verified(apk, release)) return apk
-        if (release.apkUrl.isEmpty()) throw IOException("Файл версии ${release.version} повреждён, а на GitHub её нет")
+        if (release.apkUrl.isEmpty()) throw IOException(tr("Файл версии ${release.version} повреждён, а на GitHub её нет", "The file for version ${release.version} is corrupted and it is not on GitHub"))
         _state.value = UpdateState.Downloading(release, 0f)
         download(release, apk)
         withContext(Dispatchers.IO) { prune(keep = apk) }
@@ -235,7 +236,7 @@ class UpdateManager(
     }
 
     private suspend fun download(release: ReleaseInfo, target: File) = withContext(Dispatchers.IO) {
-        val dir = target.parentFile ?: throw IOException("Нет папки для загрузки")
+        val dir = target.parentFile ?: throw IOException(tr("Нет папки для загрузки", "No download folder"))
         dir.mkdirs()
         dir.listFiles().orEmpty().filter { it.name.endsWith(".part") }.forEach { it.delete() }
         val part = File(target.path + ".part")
@@ -265,10 +266,10 @@ class UpdateManager(
             conn.disconnect()
         }
         target.delete()
-        if (!part.renameTo(target)) throw IOException("Не удалось сохранить файл")
+        if (!part.renameTo(target)) throw IOException(tr("Не удалось сохранить файл", "Could not save the file"))
         if (!verified(target, release)) {
             target.delete()
-            throw IOException("Файл скачался повреждённым, попробуйте ещё раз")
+            throw IOException(tr("Файл скачался повреждённым, попробуйте ещё раз", "The downloaded file is corrupted, please try again"))
         }
     }
 
@@ -310,19 +311,37 @@ class UpdateManager(
 
     private suspend fun install(release: ReleaseInfo, apk: File) {
         if (privileged.isAvailable) {
-            // On success the system replaces this process; we only get here again on failure.
+            // On success the system kills this process and the detached shell starts MCleaner again.
             val staged = stage(apk)
-            if (staged != null) {
-                val r = privileged.exec("pm install -r $staged")
-                if (r.ok) return
-                privileged.exec("rm -f $staged")
-            }
+            if (staged != null && installDetached(staged, downgrade = false)) return
         }
         if (!context.packageManager.canRequestPackageInstalls()) {
             _state.value = UpdateState.NeedsPermission(release)
             return
         }
+        // The new version opens itself after the update (see [UpdateRelaunchReceiver]).
+        UpdateRelaunchReceiver.arm(context)
         withContext(Dispatchers.IO) { installWithSession(apk) }
+    }
+
+    /**
+     * `pm install` in a detached shell that restarts MCleaner on success. Returns false if the install
+     * reported a failure (we are still alive then); on success this process is killed while waiting.
+     */
+    private suspend fun installDetached(staged: String, downgrade: Boolean): Boolean {
+        val result = "$TMP/mcleaner-install.txt"
+        privileged.exec("echo > $result")
+        val script = RollbackScript.installAndRestart(staged, result, "${context.packageName}/.MainActivity", downgrade)
+        if (!privileged.exec(RollbackScript.detached(script)).ok) return false
+        repeat(INSTALL_WAIT_S) {
+            kotlinx.coroutines.delay(1_000)
+            val out = privileged.exec("cat $result").out
+            if ("Failure" in out || "Error" in out || "Exception" in out) {
+                privileged.exec("rm -f $staged")
+                return false
+            }
+        }
+        return false
     }
 
     /**
@@ -331,19 +350,17 @@ class UpdateManager(
      * uninstall → install the old one (or the current one back on failure) → start MCleaner.
      */
     private suspend fun rollbackTo(release: ReleaseInfo, apk: File) {
-        val staged = stage(apk) ?: throw IOException("Не удалось подготовить файл для установки")
-        val inPlace = privileged.exec("pm install -r -d $staged")
-        if (inPlace.ok) return
-        privileged.exec("rm -f $staged")
+        val staged = stage(apk) ?: throw IOException(tr("Не удалось подготовить файл для установки", "Could not prepare the file for installation"))
+        if (installDetached(staged, downgrade = true)) return
         val target = "$TMP/mcleaner-target.apk"
         val current = "$TMP/mcleaner-current.apk"
         val copy = privileged.exec(
             "cp ${shellQuote(apk.absolutePath)} $target && cp ${shellQuote(context.applicationInfo.sourceDir)} $current && chmod 644 $target $current",
         )
-        if (!copy.ok) throw IOException("Не удалось подготовить файлы для переустановки: ${copy.out.take(200)}")
+        if (!copy.ok) throw IOException(tr("Не удалось подготовить файлы для переустановки: ${copy.out.take(200)}", "Could not prepare files for reinstall: ${copy.out.take(200)}"))
         val script = RollbackScript.reinstallSteps(target, current, context.packageName, "${context.packageName}/.MainActivity")
         val r = privileged.exec(RollbackScript.detached(script))
-        if (!r.ok) throw IOException("Не удалось запустить переустановку: ${r.out.take(200)}")
+        if (!r.ok) throw IOException(tr("Не удалось запустить переустановку: ${r.out.take(200)}", "Could not start reinstall: ${r.out.take(200)}"))
         // MCleaner is uninstalled within seconds; nothing else to do here.
         _state.value = UpdateState.Installing(release)
     }
@@ -379,12 +396,12 @@ class UpdateManager(
     }
 
     private fun describe(e: Throwable?): String = when (e) {
-        is HttpStatusException -> if (e.code == 403) "GitHub временно ограничил запросы, попробуйте позже" else "GitHub ответил ошибкой ${e.code}"
+        is HttpStatusException -> if (e.code == 403) tr("GitHub временно ограничил запросы, попробуйте позже", "GitHub has temporarily rate-limited requests, try again later") else tr("GitHub ответил ошибкой ${e.code}", "GitHub returned error ${e.code}")
         is java.net.UnknownHostException, is java.net.ConnectException, is java.net.SocketTimeoutException,
-        is java.net.NoRouteToHostException, is javax.net.ssl.SSLException -> "Нет связи с GitHub"
-        is java.io.FileNotFoundException -> "Нет доступа к папке для загрузки: ${e.message}"
-        is IOException -> e.message?.replaceFirstChar(Char::uppercase) ?: "Ошибка ввода-вывода"
-        null -> "Неизвестная ошибка"
+        is java.net.NoRouteToHostException, is javax.net.ssl.SSLException -> tr("Нет связи с GitHub", "Cannot reach GitHub")
+        is java.io.FileNotFoundException -> tr("Нет доступа к папке для загрузки: ${e.message}", "No access to the download folder: ${e.message}")
+        is IOException -> e.message?.replaceFirstChar(Char::uppercase) ?: tr("Ошибка ввода-вывода", "I/O error")
+        null -> tr("Неизвестная ошибка", "Unknown error")
         else -> e.message ?: e.javaClass.simpleName
     }
 
@@ -393,6 +410,7 @@ class UpdateManager(
         const val AUTO_PAUSE_MS = 15_000L
         const val TIMEOUT_MS = 15_000
         const val KEEP_VERSIONS = 5
+        private const val INSTALL_WAIT_S = 120
         private const val TMP = "/data/local/tmp"
     }
 }

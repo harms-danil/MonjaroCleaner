@@ -1,5 +1,6 @@
 package app.mcleaner.ui.overview
 
+import app.mcleaner.core.i18n.tr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -56,7 +57,7 @@ fun OverviewScreen() {
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Состояние магнитолы", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            Text(tr("Состояние магнитолы", "Head unit status"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Icon(
                     if (full) Icons.Outlined.VerifiedUser else Icons.Outlined.WarningAmber,
@@ -73,30 +74,30 @@ fun OverviewScreen() {
             val ram = s?.ram
             val ramFraction = ram?.let { it.usedKb.toFloat() / it.totalKb } ?: 0f
             StatCard(
-                label = "Оперативная память",
+                label = tr("Оперативная память", "Memory (RAM)"),
                 value = ram?.let { Formatters.usedOfTotal(it.usedKb * 1024, it.totalKb * 1024) } ?: "—",
                 progress = ram?.let { ramFraction },
                 barColor = ramColor(ramFraction),
-                caption = ram?.let { "Свободно ${Formatters.kb(it.availableKb)} · ${(ramFraction * 100).toInt()}%" } ?: "Загрузка…",
+                caption = ram?.let { tr("Свободно ${Formatters.kb(it.availableKb)} · ${(ramFraction * 100).toInt()}%", "Free ${Formatters.kb(it.availableKb)} · ${(ramFraction * 100).toInt()}%") } ?: tr("Загрузка…", "Loading…"),
                 modifier = Modifier.weight(1f),
             )
             val used = s?.let { it.storageTotalBytes - it.storageFreeBytes }
             StatCard(
-                label = "Накопитель",
+                label = tr("Накопитель", "Storage"),
                 value = s?.let { Formatters.usedOfTotal(used!!, it.storageTotalBytes) } ?: "—",
                 progress = s?.let { used!!.toFloat() / it.storageTotalBytes.coerceAtLeast(1) },
                 barColor = MaterialTheme.colorScheme.primary,
-                caption = s?.let { "Свободно ${Formatters.bytes(it.storageFreeBytes)}" } ?: "Загрузка…",
+                caption = s?.let { tr("Свободно ${Formatters.bytes(it.storageFreeBytes)}", "Free ${Formatters.bytes(it.storageFreeBytes)}") } ?: tr("Загрузка…", "Loading…"),
                 modifier = Modifier.weight(1f),
             )
             StatCard(
-                label = "Процессор",
+                label = tr("Процессор", "CPU"),
                 value = s?.cpuPercent?.let { "$it%" } ?: "—",
                 progress = s?.cpuPercent?.let { it / 100f },
                 barColor = ramColor((s?.cpuPercent ?: 0) / 100f),
                 caption = listOfNotNull(
-                    s?.tempC?.let { "Температура $it °C" },
-                    if (s?.cpuPercent == null) "Нагрузка — в полном режиме" else null,
+                    s?.tempC?.let { tr("Температура $it °C", "Temperature $it °C") },
+                    if (s?.cpuPercent == null) tr("Нагрузка — в полном режиме", "Load — in full mode") else null,
                 ).joinToString(" · ").ifEmpty { " " },
                 modifier = Modifier.weight(1f),
             )
@@ -108,11 +109,11 @@ fun OverviewScreen() {
                     .background(MaterialTheme.colorScheme.surface).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("Больше всего памяти", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
+                Text(tr("Больше всего памяти", "Top memory users"), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
                 if (!full) {
-                    Text("Доступно в полном режиме", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(tr("Доступно в полном режиме", "Available in full mode"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else if (ui.topApps.isEmpty()) {
-                    Text("Загрузка…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(tr("Загрузка…", "Loading…"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 ui.topApps.forEach { app ->
                     Row(Modifier.fillMaxWidth()) {
@@ -127,7 +128,7 @@ fun OverviewScreen() {
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 PrimaryButton(
-                    text = if (ui.boosting) "Ускоряю…" else "Ускорить",
+                    text = if (ui.boosting) tr("Ускоряю…", "Boosting…") else tr("Ускорить", "Boost"),
                     onClick = vm::boost,
                     enabled = !ui.boosting,
                     modifier = Modifier.fillMaxWidth(),
@@ -141,7 +142,7 @@ fun OverviewScreen() {
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    if (full) "Завершит ${ui.candidates} фоновых приложений и очистит кэш" else "Попросит систему выгрузить фоновые приложения",
+                    if (full) tr("Завершит ${ui.candidates} фоновых приложений и очистит кэш", "Will stop ${ui.candidates} background apps and clear cache") else tr("Попросит систему выгрузить фоновые приложения", "Will ask the system to unload background apps"),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     fontSize = 16.sp,
@@ -153,22 +154,22 @@ fun OverviewScreen() {
     ui.report?.let { r ->
         AlertDialog(
             onDismissRequest = vm::dismissReport,
-            confirmButton = { TextButton(onClick = vm::dismissReport) { Text("Готово") } },
-            title = { Text("Готово") },
+            confirmButton = { TextButton(onClick = vm::dismissReport) { Text(tr("Готово", "Done")) } },
+            title = { Text(tr("Готово", "Done")) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Освобождено ${Formatters.kb(r.freedRamKb)} оперативной памяти")
-                    if (r.fullMode) Text("Очищено ${Formatters.bytes(r.freedCacheBytes)} кэша")
-                    Text("Остановлено приложений: ${r.stopped}")
-                    if (r.failed.isNotEmpty()) Text("Не удалось остановить: ${r.failed.size}", color = Palette.Warn)
+                    Text(tr("Освобождено ${Formatters.kb(r.freedRamKb)} оперативной памяти", "Freed ${Formatters.kb(r.freedRamKb)} of RAM"))
+                    if (r.fullMode) Text(tr("Очищено ${Formatters.bytes(r.freedCacheBytes)} кэша", "Cleared ${Formatters.bytes(r.freedCacheBytes)} of cache"))
+                    Text(tr("Остановлено приложений: ${r.stopped}", "Apps stopped: ${r.stopped}"))
+                    if (r.failed.isNotEmpty()) Text(tr("Не удалось остановить: ${r.failed.size}", "Could not stop: ${r.failed.size}"), color = Palette.Warn)
                     if (r.protectionUnavailable) {
                         Text(
-                            "Не удалось проверить, какие приложения сейчас играют или ведут маршрут, поэтому приложения не останавливались — только очищен кэш.",
+                            tr("Не удалось проверить, какие приложения сейчас играют или ведут маршрут, поэтому приложения не останавливались — только очищен кэш.", "Could not check which apps are playing audio or navigating, so no apps were stopped — only cache was cleared."),
                             color = Palette.Warn,
                         )
                     }
                     if (!r.fullMode) {
-                        Text("Для полного эффекта включите Shizuku в настройках.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(tr("Для полного эффекта включите Shizuku в настройках.", "For the full effect, enable Shizuku in Settings."), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             },

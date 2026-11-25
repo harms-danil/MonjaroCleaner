@@ -1,5 +1,6 @@
 package app.mcleaner.ui.cleanup
 
+import app.mcleaner.core.i18n.tr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -80,14 +81,14 @@ fun CleanupScreen() {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 PrimaryButton(
-                    "Очистить кэш всех приложений",
+                    tr("Очистить кэш всех приложений", "Clear cache of all apps"),
                     onClick = vm::clearAllCache,
                     enabled = full && !ui.busy,
                     modifier = Modifier.weight(1f),
                     icon = { Icon(Icons.Outlined.DeleteSweep, contentDescription = null) },
                 )
                 PrimaryButton(
-                    "Найти мусор",
+                    tr("Найти мусор", "Find junk"),
                     onClick = vm::scan,
                     enabled = !ui.busy,
                     modifier = Modifier.weight(1f),
@@ -95,24 +96,24 @@ fun CleanupScreen() {
                 )
             }
             Text(
-                if (full) "Кэш навигаторов и музыки из белого списка не трогаем, чтобы не пропали офлайн-карты и треки."
-                else "Очистка кэша всех приложений доступна в полном режиме (Shizuku).",
+                if (full) tr("Кэш навигаторов и музыки из белого списка не трогаем, чтобы не пропали офлайн-карты и треки.", "Cache of whitelisted navigators and music is kept so offline maps and tracks are not lost.")
+                else tr("Очистка кэша всех приложений доступна в полном режиме (Shizuku).", "Clearing the cache of all apps is available in full mode (Shizuku)."),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (!full && !vm.hasFileAccess()) {
-                PermissionPlate("Чтобы искать и удалять мусор, нужен доступ ко всем файлам.", "Выдать доступ") {
+                PermissionPlate(tr("Чтобы искать и удалять мусор, нужен доступ ко всем файлам.", "Access to all files is needed to find and delete junk."), tr("Выдать доступ", "Grant access")) {
                     SystemScreens.allFilesAccess(context)
                 }
             }
             if (ui.busy) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     CircularProgressIndicator(Modifier.size(28.dp))
-                    Text("Работаю…")
+                    Text(tr("Работаю…", "Working…"))
                 }
             }
             if (ui.scanned) {
                 if (ui.junk.isEmpty()) {
-                    Text("Мусора не найдено", style = MaterialTheme.typography.titleMedium)
+                    Text(tr("Мусора не найдено", "No junk found"), style = MaterialTheme.typography.titleMedium)
                 } else {
                     JunkCategory.entries.filter { it in ui.junk }.forEach { cat ->
                         val items = ui.junk[cat].orEmpty()
@@ -136,15 +137,15 @@ fun CleanupScreen() {
                                 Column(Modifier.weight(1f)) {
                                     Text(cat.title)
                                     if (cat == JunkCategory.APK) {
-                                        Text("Проверьте: возможно, это нужные установщики", color = Palette.Warn)
+                                        Text(tr("Проверьте: возможно, это нужные установщики", "Check first: these may be installers you need"), color = Palette.Warn)
                                     }
                                 }
                                 Text(
-                                    if (chosen.size == items.size || chosen.isEmpty()) "${items.size} шт. · ${Formatters.bytes(items.sumOf { it.sizeBytes })}"
-                                    else "выбрано ${chosen.size} из ${items.size} · ${Formatters.bytes(chosen.sumOf { it.sizeBytes })}",
+                                    if (chosen.size == items.size || chosen.isEmpty()) tr("${items.size} шт. · ${Formatters.bytes(items.sumOf { it.sizeBytes })}", "${items.size} items · ${Formatters.bytes(items.sumOf { it.sizeBytes })}")
+                                    else tr("выбрано ${chosen.size} из ${items.size} · ${Formatters.bytes(chosen.sumOf { it.sizeBytes })}", "selected ${chosen.size} of ${items.size} · ${Formatters.bytes(chosen.sumOf { it.sizeBytes })}"),
                                 )
                                 TextButton(onClick = { expanded = !expanded }, modifier = Modifier.heightIn(min = MinTouch)) {
-                                    Text(if (expanded) "Скрыть" else "Выбрать файлы")
+                                    Text(if (expanded) tr("Скрыть", "Hide") else tr("Выбрать файлы", "Select files"))
                                 }
                             }
                             if (expanded) {
@@ -172,7 +173,7 @@ fun CleanupScreen() {
                                     }
                                     if (items.size > MAX_SHOWN) {
                                         Text(
-                                            "…и ещё ${items.size - MAX_SHOWN}: их выбор меняется галочкой категории",
+                                            tr("…и ещё ${items.size - MAX_SHOWN}: их выбор меняется галочкой категории", "…and ${items.size - MAX_SHOWN} more: toggled with the category checkbox"),
                                             fontSize = 14.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -185,7 +186,7 @@ fun CleanupScreen() {
                         onClick = vm::askDelete,
                         enabled = ui.selectedItems.isNotEmpty() && !ui.busy,
                         modifier = Modifier.heightIn(min = MinTouch),
-                    ) { Text("Удалить выбранное (${Formatters.bytes(ui.selectedBytes)})") }
+                    ) { Text(tr("Удалить выбранное (${Formatters.bytes(ui.selectedBytes)})", "Delete selected (${Formatters.bytes(ui.selectedBytes)})")) }
                 }
             }
         }
@@ -195,19 +196,19 @@ fun CleanupScreen() {
     if (ui.askTrimAll) {
         AlertDialog(
             onDismissRequest = vm::dismissTrimAll,
-            title = { Text("Поштучная очистка недоступна") },
-            text = { Text("Прошивка не даёт чистить кэш по одному приложению. Очистить кэш всех приложений, включая навигатор и музыку? Офлайн-карты могут скачаться заново.") },
-            confirmButton = { TextButton(onClick = vm::confirmTrimAll) { Text("Очистить всё") } },
-            dismissButton = { OutlinedButton(onClick = vm::dismissTrimAll) { Text("Отмена") } },
+            title = { Text(tr("Поштучная очистка недоступна", "Per-app cleanup unavailable")) },
+            text = { Text(tr("Прошивка не даёт чистить кэш по одному приложению. Очистить кэш всех приложений, включая навигатор и музыку? Офлайн-карты могут скачаться заново.", "The firmware does not allow clearing cache per app. Clear the cache of all apps, including navigator and music? Offline maps may need to be downloaded again.")) },
+            confirmButton = { TextButton(onClick = vm::confirmTrimAll) { Text(tr("Очистить всё", "Clear all")) } },
+            dismissButton = { OutlinedButton(onClick = vm::dismissTrimAll) { Text(tr("Отмена", "Cancel")) } },
         )
     }
     if (ui.confirmDelete) {
         AlertDialog(
             onDismissRequest = vm::dismissDelete,
-            title = { Text("Удалить файлы?") },
-            text = { Text("Удалить ${ui.selectedItems.size} файлов, ${Formatters.bytes(ui.selectedBytes)}? Это нельзя отменить.") },
-            confirmButton = { TextButton(onClick = vm::delete) { Text("Удалить") } },
-            dismissButton = { OutlinedButton(onClick = vm::dismissDelete) { Text("Отмена") } },
+            title = { Text(tr("Удалить файлы?", "Delete files?")) },
+            text = { Text(tr("Удалить ${ui.selectedItems.size} файлов, ${Formatters.bytes(ui.selectedBytes)}? Это нельзя отменить.", "Delete ${ui.selectedItems.size} files, ${Formatters.bytes(ui.selectedBytes)}? This cannot be undone.")) },
+            confirmButton = { TextButton(onClick = vm::delete) { Text(tr("Удалить", "Delete")) } },
+            dismissButton = { OutlinedButton(onClick = vm::dismissDelete) { Text(tr("Отмена", "Cancel")) } },
         )
     }
 }

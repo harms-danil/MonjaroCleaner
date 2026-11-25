@@ -1,5 +1,6 @@
 package app.mcleaner.ui.apps
 
+import app.mcleaner.core.i18n.tr
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
@@ -81,19 +82,19 @@ class AppsViewModel(private val c: AppContainer) : ViewModel() {
 
     fun canStop(app: AppInfo): Boolean = BoostPolicy.canStopManually(app, selfPackage)
 
-    fun stop(app: AppInfo) = act("${app.label}: остановлено", "${app.label}: не удалось остановить") {
+    fun stop(app: AppInfo) = act(tr("${app.label}: остановлено", "${app.label}: stopped"), tr("${app.label}: не удалось остановить", "${app.label}: could not stop")) {
         c.shizuku.exec("am force-stop ${app.packageName}").ok
     }
 
-    fun clearCache(app: AppInfo) = act("${app.label}: кэш очищен", "${app.label}: не удалось очистить кэш") {
+    fun clearCache(app: AppInfo) = act(tr("${app.label}: кэш очищен", "${app.label}: cache cleared"), tr("${app.label}: не удалось очистить кэш", "${app.label}: could not clear cache")) {
         c.cacheCleaner.clearOne(app.packageName, c.apps.currentUser())
     }
 
-    fun freeze(app: AppInfo) = act("${app.label}: заморожено", "${app.label}: не удалось заморозить") {
+    fun freeze(app: AppInfo) = act(tr("${app.label}: заморожено", "${app.label}: frozen"), tr("${app.label}: не удалось заморозить", "${app.label}: could not freeze")) {
         c.freezeManager.freeze(app, selfPackage)
     }
 
-    fun unfreeze(app: AppInfo) = act("${app.label}: разморожено", "${app.label}: не удалось разморозить") {
+    fun unfreeze(app: AppInfo) = act(tr("${app.label}: разморожено", "${app.label}: unfrozen"), tr("${app.label}: не удалось разморозить", "${app.label}: could not unfreeze")) {
         c.freezeManager.unfreeze(app.packageName)
     }
 

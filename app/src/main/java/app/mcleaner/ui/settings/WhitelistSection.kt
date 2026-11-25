@@ -1,5 +1,6 @@
 package app.mcleaner.ui.settings
 
+import app.mcleaner.core.i18n.tr
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -60,17 +61,17 @@ fun WhitelistSection(
 
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.weight(1f)) {
-            Text("Белый список: ${entries.size}", style = MaterialTheme.typography.titleMedium)
+            Text(tr("Белый список: ${entries.size}", "Whitelist: ${entries.size}"), style = MaterialTheme.typography.titleMedium)
             Text(
-                "«Ускорить» не останавливает эти приложения и не чистит их кэш. Системные приложения машины защищены всегда.",
+                tr("«Ускорить» не останавливает эти приложения и не чистит их кэш. Системные приложения машины защищены всегда.", "Boost does not stop these apps or clear their cache. The car's system apps are always protected."),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         OutlinedButton(onClick = { adding = true }, modifier = Modifier.heightIn(min = MinTouch)) {
             Icon(Icons.Outlined.Add, contentDescription = null)
-            Text("Добавить")
+            Text(tr("Добавить", "Add"))
         }
-        TextButton(onClick = { confirmReset = true }, modifier = Modifier.heightIn(min = MinTouch)) { Text("Сбросить") }
+        TextButton(onClick = { confirmReset = true }, modifier = Modifier.heightIn(min = MinTouch)) { Text(tr("Сбросить", "Reset")) }
     }
     Column {
         entries.forEach { e ->
@@ -78,12 +79,12 @@ fun WhitelistSection(
                 Column(Modifier.weight(1f)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(e.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        if (!e.installed) Badge("не установлено", BadgeKind.NEUTRAL)
+                        if (!e.installed) Badge(tr("не установлено", "not installed"), BadgeKind.NEUTRAL)
                     }
                     if (e.installed) Text(e.packageName, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 IconButton(onClick = { onRemove(e.packageName) }, modifier = Modifier.size(MinTouch)) {
-                    Icon(Icons.Outlined.Close, contentDescription = "Убрать ${e.label} из белого списка")
+                    Icon(Icons.Outlined.Close, contentDescription = tr("Убрать ${e.label} из белого списка", "Remove ${e.label} from whitelist"))
                 }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
@@ -96,10 +97,10 @@ fun WhitelistSection(
     if (confirmReset) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { confirmReset = false },
-            title = { Text("Сбросить белый список?") },
-            text = { Text("Останутся только стандартные навигаторы, музыка, Shizuku и DiPlay. Ваши добавленные приложения уберутся.") },
-            confirmButton = { TextButton(onClick = { onReset(); confirmReset = false }) { Text("Сбросить") } },
-            dismissButton = { OutlinedButton(onClick = { confirmReset = false }) { Text("Отмена") } },
+            title = { Text(tr("Сбросить белый список?", "Reset whitelist?")) },
+            text = { Text(tr("Останутся только стандартные навигаторы, музыка, Shizuku и DiPlay. Ваши добавленные приложения уберутся.", "Only the default navigators, music, Shizuku and DiPlay will remain. Apps you added will be removed.")) },
+            confirmButton = { TextButton(onClick = { onReset(); confirmReset = false }) { Text(tr("Сбросить", "Reset")) } },
+            dismissButton = { OutlinedButton(onClick = { confirmReset = false }) { Text(tr("Отмена", "Cancel")) } },
         )
     }
 }
@@ -114,13 +115,13 @@ private fun AddDialog(candidates: (String) -> List<InstalledApp>, onPick: (Strin
         Box(Modifier.fillMaxSize().systemBarsPadding().imePadding().padding(12.dp), contentAlignment = Alignment.Center) {
         Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.widthIn(max = 720.dp)) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Добавить в белый список", style = MaterialTheme.typography.titleLarge)
+                Text(tr("Добавить в белый список", "Add to whitelist"), style = MaterialTheme.typography.titleLarge)
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
                     singleLine = true,
                     leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                    placeholder = { Text("Название или пакет") },
+                    placeholder = { Text(tr("Название или пакет", "Name or package")) },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false).heightIn(max = 380.dp)) {
@@ -134,16 +135,16 @@ private fun AddDialog(candidates: (String) -> List<InstalledApp>, onPick: (Strin
                                 Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(app.packageName, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            if (app.isSystem) Badge("системное", BadgeKind.WARN)
-                            Icon(Icons.Outlined.Add, contentDescription = "Добавить", Modifier.padding(start = 12.dp))
+                            if (app.isSystem) Badge(tr("системное", "system"), BadgeKind.WARN)
+                            Icon(Icons.Outlined.Add, contentDescription = tr("Добавить", "Add"), Modifier.padding(start = 12.dp))
                         }
                         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
                     }
                 }
-                if (list.isEmpty()) Text("Ничего не найдено", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (list.isEmpty()) Text(tr("Ничего не найдено", "Nothing found"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = MinTouch)) {
-                        Text(if (added.isEmpty()) "Закрыть" else "Готово (добавлено: ${added.size})")
+                        Text(if (added.isEmpty()) tr("Закрыть", "Close") else tr("Готово (добавлено: ${added.size})", "Done (added: ${added.size})"))
                     }
                 }
             }

@@ -1,5 +1,6 @@
 package app.mcleaner
 
+import app.mcleaner.core.i18n.tr
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -19,8 +20,8 @@ class MCleanerApp : Application() {
         super.onCreate()
         container = AppContainer(this)
         val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CHANNEL_RESULT, "Результат автоускорения", NotificationManager.IMPORTANCE_LOW))
-        nm.createNotificationChannel(NotificationChannel(CHANNEL_WATCH, "Слежение за пробуждением", NotificationManager.IMPORTANCE_MIN))
+        nm.createNotificationChannel(NotificationChannel(CHANNEL_RESULT, tr("Результат автоускорения", "Auto-boost result"), NotificationManager.IMPORTANCE_LOW))
+        nm.createNotificationChannel(NotificationChannel(CHANNEL_WATCH, tr("Слежение за пробуждением", "Wake watching"), NotificationManager.IMPORTANCE_MIN))
 
         // Settings backup in /sdcard/MCleaner: restore on first run, then rewrite on every change.
         val c = container

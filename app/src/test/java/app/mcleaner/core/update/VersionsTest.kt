@@ -44,8 +44,9 @@ class VersionCatalogTest {
     }
 
     @Test
-    fun `restore support starts at 1_2_0`() {
-        assertTrue(VersionCatalog.restoresSettings("1.2.0"))
+    fun `restore support starts at 1_2_1`() {
+        assertTrue(VersionCatalog.restoresSettings("1.2.1"))
+        assertFalse(VersionCatalog.restoresSettings("1.2.0")) // could overwrite the backup on Android 9
         assertTrue(VersionCatalog.restoresSettings("1.10.0"))
         assertFalse(VersionCatalog.restoresSettings("1.1.0"))
     }
@@ -111,5 +112,18 @@ class RollbackScriptTest {
         assertTrue(w.startsWith("setsid sh -c "))
         assertTrue(w.trimEnd().endsWith("&"))
         assertTrue("'echo '\\''hi'\\''; sleep 1'" in w)
+    }
+
+    @Test
+    fun `install script restarts MCleaner only after a successful install`() {
+        val s = RollbackScript.installAndRestart("/data/local/tmp/u.apk", "/data/local/tmp/r.txt", "app.mcleaner/.MainActivity", downgrade = false)
+        assertTrue(s.startsWith("pm install -r '/data/local/tmp/u.apk' > '/data/local/tmp/r.txt' 2>&1;"))
+        assertTrue("if grep -q Success '/data/local/tmp/r.txt'; then am start -n 'app.mcleaner/.MainActivity'" in s)
+        assertFalse(" -d " in s)
+    }
+
+    @Test
+    fun `downgrade install adds -d`() {
+        assertTrue(RollbackScript.installAndRestart("/t/u.apk", "/t/r", "a/.B", downgrade = true).startsWith("pm install -r -d '/t/u.apk'"))
     }
 }

@@ -1,11 +1,18 @@
 package app.mcleaner.core.junk
 
-enum class JunkCategory(val title: String) {
-    APK("Установочные файлы APK"),
-    LOGS("Логи"),
-    TEMP("Временные файлы"),
-    THUMBNAILS("Миниатюры"),
-    EMPTY_DIRS("Пустые папки"),
+import app.mcleaner.core.i18n.tr
+
+enum class JunkCategory {
+    APK, LOGS, TEMP, THUMBNAILS, EMPTY_DIRS;
+
+    val title: String
+        get() = when (this) {
+            APK -> tr("Установочные файлы APK", "APK installers")
+            LOGS -> tr("Логи", "Logs")
+            TEMP -> tr("Временные файлы", "Temporary files")
+            THUMBNAILS -> tr("Миниатюры", "Thumbnails")
+            EMPTY_DIRS -> tr("Пустые папки", "Empty folders")
+        }
 }
 
 data class JunkItem(val path: String, val sizeBytes: Long, val category: JunkCategory)

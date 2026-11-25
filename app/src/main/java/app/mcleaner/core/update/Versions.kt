@@ -29,7 +29,7 @@ data class VersionEntry(
 
 object VersionCatalog {
     /** First version that restores settings from the backup file after a reinstall. */
-    const val RESTORE_SINCE = "1.2.0"
+    const val RESTORE_SINCE = "1.2.1" // 1.2.0 on Android 9 could overwrite the backup with defaults
 
     fun restoresSettings(version: String) = !Version.isNewer(RESTORE_SINCE, version)
 
@@ -84,6 +84,15 @@ object RollbackScript {
         "sleep 2; pm uninstall ${shellQuote(pkg)}; " +
             "pm install -r ${shellQuote(target)} || pm install -r ${shellQuote(current)}; " +
             "am start -n ${shellQuote(component)}; rm -f ${shellQuote(target)} ${shellQuote(current)}"
+
+    /**
+     * Install [staged] over the current version and, on success, start MCleaner again: the install kills
+     * MCleaner, so the restart must come from this separate shell. The pm output lands in [result],
+     * which MCleaner polls to notice a failure while it is still alive.
+     */
+    fun installAndRestart(staged: String, result: String, component: String, downgrade: Boolean): String =
+        "pm install -r ${if (downgrade) "-d " else ""}${shellQuote(staged)} > ${shellQuote(result)} 2>&1; " +
+            "if grep -q Success ${shellQuote(result)}; then am start -n ${shellQuote(component)}; rm -f ${shellQuote(staged)}; fi"
 
     /** Runs [script] in its own session so it outlives MCleaner (which the script uninstalls). */
     fun detached(script: String): String = "setsid sh -c ${shellQuote(script)} </dev/null >/dev/null 2>&1 &"

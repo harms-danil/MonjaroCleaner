@@ -1,5 +1,6 @@
 package app.mcleaner.ui.apps
 
+import app.mcleaner.core.i18n.tr
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -75,24 +76,24 @@ fun AppsScreen() {
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(ui.sort == AppSort.MEMORY, { vm.setSort(AppSort.MEMORY) }, { Text("По памяти") }, Modifier.heightIn(min = 48.dp))
-                FilterChip(ui.sort == AppSort.CACHE, { vm.setSort(AppSort.CACHE) }, { Text("По кэшу") }, Modifier.heightIn(min = 48.dp))
-                FilterChip(ui.onlyRunning, { vm.setOnlyRunning(!ui.onlyRunning) }, { Text("Только работающие") }, Modifier.heightIn(min = 48.dp), enabled = full)
+                FilterChip(ui.sort == AppSort.MEMORY, { vm.setSort(AppSort.MEMORY) }, { Text(tr("По памяти", "By memory")) }, Modifier.heightIn(min = 48.dp))
+                FilterChip(ui.sort == AppSort.CACHE, { vm.setSort(AppSort.CACHE) }, { Text(tr("По кэшу", "By cache")) }, Modifier.heightIn(min = 48.dp))
+                FilterChip(ui.onlyRunning, { vm.setOnlyRunning(!ui.onlyRunning) }, { Text(tr("Только работающие", "Running only")) }, Modifier.heightIn(min = 48.dp), enabled = full)
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = vm::reload, modifier = Modifier.size(MinTouch)) {
-                    Icon(Icons.Outlined.Refresh, contentDescription = "Обновить")
+                    Icon(Icons.Outlined.Refresh, contentDescription = tr("Обновить", "Refresh"))
                 }
             }
             if (!vm.hasUsageAccess && !full) {
-                PermissionPlate("Чтобы видеть размер кэша, выдайте доступ к статистике.", "Выдать доступ") {
+                PermissionPlate(tr("Чтобы видеть размер кэша, выдайте доступ к статистике.", "Grant usage access to see cache sizes."), tr("Выдать доступ", "Grant access")) {
                     SystemScreens.usageAccess(context)
                 }
             }
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
                 Spacer(Modifier.width(52.dp))
-                Header("Приложение", Modifier.weight(1f))
-                Header("ОЗУ", Modifier.width(100.dp))
-                Header("Кэш", Modifier.width(100.dp))
+                Header(tr("Приложение", "App"), Modifier.weight(1f))
+                Header(tr("ОЗУ", "RAM"), Modifier.width(100.dp))
+                Header(tr("Кэш", "Cache"), Modifier.width(100.dp))
                 Spacer(Modifier.width(150.dp))
             }
             if (ui.loading && ui.apps.isEmpty()) {
@@ -104,7 +105,7 @@ fun AppsScreen() {
                             app = app,
                             whitelisted = app.packageName in whitelist,
                             loadIcon = vm::icon,
-                            actionLabel = if (app.isRunning && vm.canStop(app)) "Остановить" else "Кэш",
+                            actionLabel = if (app.isRunning && vm.canStop(app)) tr("Остановить", "Stop") else tr("Кэш", "Cache"),
                             onAction = {
                                 when {
                                     !full -> SystemScreens.appDetails(context, app.packageName)
@@ -167,9 +168,9 @@ private fun AppRow(
         Spacer(Modifier.width(12.dp))
         Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-            if (app.isSystem) Badge("системное", BadgeKind.WARN)
-            if (whitelisted) Badge("в белом списке", BadgeKind.GOOD)
-            if (app.isFrozen) Badge("заморожено", BadgeKind.INFO)
+            if (app.isSystem) Badge(tr("системное", "system"), BadgeKind.WARN)
+            if (whitelisted) Badge(tr("в белом списке", "whitelisted"), BadgeKind.GOOD)
+            if (app.isFrozen) Badge(tr("заморожено", "frozen"), BadgeKind.INFO)
         }
         Text(app.pssKb?.let(Formatters::kb) ?: "—", Modifier.width(100.dp))
         Text(app.cacheBytes?.let(Formatters::bytes) ?: "—", Modifier.width(100.dp))

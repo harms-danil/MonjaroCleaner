@@ -1,5 +1,6 @@
 package app.mcleaner.auto
 
+import app.mcleaner.core.i18n.tr
 import android.app.NotificationManager
 import android.content.Context
 import androidx.core.app.NotificationCompat
@@ -30,7 +31,7 @@ class AutoBoostWorker(context: Context, params: WorkerParameters) : CoroutineWor
 
         c.settings.setLastAutoBoost(now)
         val report = c.boost.run()
-        notify("Освобождено ${Formatters.kb(report.freedRamKb)} ОЗУ, остановлено приложений: ${report.stopped}")
+        notify(tr("Освобождено ${Formatters.kb(report.freedRamKb)} ОЗУ, остановлено приложений: ${report.stopped}", "Freed ${Formatters.kb(report.freedRamKb)} of RAM, apps stopped: ${report.stopped}"))
         return Result.success()
     }
 
@@ -38,7 +39,7 @@ class AutoBoostWorker(context: Context, params: WorkerParameters) : CoroutineWor
         val nm = applicationContext.getSystemService(NotificationManager::class.java)
         val n = NotificationCompat.Builder(applicationContext, MCleanerApp.CHANNEL_RESULT)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("MCleaner: автоускорение")
+            .setContentTitle(tr("MCleaner: автоускорение", "MCleaner: auto-boost"))
             .setContentText(text)
             .setAutoCancel(true)
             .build()

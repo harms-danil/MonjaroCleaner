@@ -1,5 +1,6 @@
 package app.mcleaner.privileged
 
+import app.mcleaner.core.i18n.tr
 import app.mcleaner.core.model.ShellResult
 
 /**
@@ -14,7 +15,7 @@ interface Privileged {
 
 object NoPrivileged : Privileged {
     override val isAvailable: Boolean = false
-    override suspend fun exec(command: String) = ShellResult(-1, "Полный режим недоступен")
+    override suspend fun exec(command: String) = ShellResult(-1, tr("Полный режим недоступен", "Full mode unavailable"))
     override suspend fun deleteCache(packageName: String, userId: Int) = false
 }
 

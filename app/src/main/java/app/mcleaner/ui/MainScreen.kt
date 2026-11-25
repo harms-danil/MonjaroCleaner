@@ -1,5 +1,6 @@
 package app.mcleaner.ui
 
+import app.mcleaner.core.i18n.tr
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -42,11 +43,13 @@ import app.mcleaner.ui.overview.OverviewScreen
 import app.mcleaner.ui.settings.SettingsScreen
 import app.mcleaner.ui.update.UpdateDialog
 
-private enum class Tab(val title: String, val icon: ImageVector) {
-    OVERVIEW("Обзор", Icons.Outlined.Speed),
-    APPS("Прилож.", Icons.Outlined.Apps),
-    CLEANUP("Очистка", Icons.Outlined.CleaningServices),
-    SETTINGS("Настр.", Icons.Outlined.Settings),
+private enum class Tab(private val ru: String, private val en: String, val icon: ImageVector) {
+    OVERVIEW("Обзор", "Overview", Icons.Outlined.Speed),
+    APPS("Прилож.", "Apps", Icons.Outlined.Apps),
+    CLEANUP("Очистка", "Cleanup", Icons.Outlined.CleaningServices),
+    SETTINGS("Настр.", "Settings", Icons.Outlined.Settings),
+    ;
+    val title: String get() = tr(ru, en)
 }
 
 @Composable
@@ -64,7 +67,7 @@ fun MainScreen() {
             c.updates.cleanupStaged()
         }
         if (previous == ShizukuState.READY.ordinal && shizuku != ShizukuState.READY) {
-            Toast.makeText(context, "Shizuku остановлен — базовый режим", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, tr("Shizuku остановлен — базовый режим", "Shizuku stopped — basic mode"), Toast.LENGTH_LONG).show()
         }
         previous = shizuku.ordinal
     }

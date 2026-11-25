@@ -1,5 +1,6 @@
 package app.mcleaner.ui.settings
 
+import app.mcleaner.core.i18n.tr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -61,7 +62,7 @@ fun SettingsScreen(onAutoBoostChanged: (Boolean) -> Unit = {}) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Section {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Полный режим (Shizuku)", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    Text(tr("Полный режим (Shizuku)", "Full mode (Shizuku)"), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                     Badge(shizuku.title(), if (full) BadgeKind.GOOD else BadgeKind.WARN)
                 }
                 if (!full) {
@@ -71,23 +72,24 @@ fun SettingsScreen(onAutoBoostChanged: (Boolean) -> Unit = {}) {
                             onClick = vm::requestPermission,
                             enabled = shizuku == ShizukuState.NO_PERMISSION,
                             modifier = Modifier.heightIn(min = MinTouch),
-                        ) { Text("Запросить разрешение") }
-                        OutlinedButton(onClick = vm::refreshShizuku, modifier = Modifier.heightIn(min = MinTouch)) { Text("Проверить снова") }
+                        ) { Text(tr("Запросить разрешение", "Request permission")) }
+                        OutlinedButton(onClick = vm::refreshShizuku, modifier = Modifier.heightIn(min = MinTouch)) { Text(tr("Проверить снова", "Check again")) }
                     }
                 } else {
-                    Text("Приложения останавливаются и кэш чистится от имени системы (ADB). Root не нужен.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(tr("Приложения останавливаются и кэш чистится от имени системы (ADB). Root не нужен.", "Apps are stopped and cache is cleared with system privileges (ADB). No root needed."), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+            Section { AppearanceSection(container().ui) }
             Section {
                 SwitchRow(
-                    title = "Автоускорение",
-                    subtitle = "После загрузки (через 90 с) и пробуждения магнитолы (через 30 с), не чаще раза в 10 минут. Работает, только если Shizuku запущен.",
+                    title = tr("Автоускорение", "Auto-boost"),
+                    subtitle = tr("После загрузки (через 90 с) и пробуждения магнитолы (через 30 с), не чаще раза в 10 минут. Работает, только если Shizuku запущен.", "After boot (in 90 s) and head unit wake-up (in 30 s), at most once every 10 minutes. Works only while Shizuku is running."),
                     checked = settings?.autoBoost == true,
                     onChange = vm::setAutoBoost,
                 )
                 SwitchRow(
-                    title = "Останавливать Google-сервисы",
-                    subtitle = "Освобождает больше памяти, но Google-сервисы сразу перезапускаются, а Play и зависящие от него приложения могут сбоить.",
+                    title = tr("Останавливать Google-сервисы", "Stop Google services"),
+                    subtitle = tr("Освобождает больше памяти, но Google-сервисы сразу перезапускаются, а Play и зависящие от него приложения могут сбоить.", "Frees more memory, but Google services restart right away, and Play and apps that depend on it may misbehave."),
                     checked = settings?.stopGoogle == true,
                     onChange = vm::setStopGoogle,
                 )
@@ -104,13 +106,13 @@ fun SettingsScreen(onAutoBoostChanged: (Boolean) -> Unit = {}) {
             Section {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Замороженные приложения: ${settings?.frozen?.size ?: 0}")
+                        Text(tr("Замороженные приложения: ${settings?.frozen?.size ?: 0}", "Frozen apps: ${settings?.frozen?.size ?: 0}"))
                     }
                     OutlinedButton(
                         onClick = vm::unfreezeAll,
                         enabled = full && !settings?.frozen.isNullOrEmpty(),
                         modifier = Modifier.heightIn(min = MinTouch),
-                    ) { Text("Разморозить всё") }
+                    ) { Text(tr("Разморозить всё", "Unfreeze all")) }
                 }
             }
             Section { UpdateSection(container().updates) }

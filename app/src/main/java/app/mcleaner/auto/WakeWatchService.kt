@@ -1,5 +1,6 @@
 package app.mcleaner.auto
 
+import app.mcleaner.core.i18n.tr
 import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -28,8 +29,8 @@ class WakeWatchService : Service() {
         super.onCreate()
         val notification = NotificationCompat.Builder(this, MCleanerApp.CHANNEL_WATCH)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("MCleaner следит за пробуждением")
-            .setContentText("Автоускорение включено")
+            .setContentTitle(tr("MCleaner следит за пробуждением", "MCleaner is watching for wake-up"))
+            .setContentText(tr("Автоускорение включено", "Auto-boost is on"))
             .setOngoing(true)
             .setSilent(true)
             .setPriority(NotificationCompat.PRIORITY_MIN)

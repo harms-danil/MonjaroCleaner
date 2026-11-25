@@ -1,5 +1,6 @@
 package app.mcleaner.ui.common
 
+import app.mcleaner.core.i18n.tr
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -86,6 +87,7 @@ fun Badge(text: String, kind: BadgeKind) {
     )
 }
 
+@androidx.compose.runtime.Composable
 fun ramColor(fraction: Float): Color = when {
     fraction < 0.70f -> Palette.Good
     fraction <= 0.85f -> Palette.Warn
@@ -93,10 +95,10 @@ fun ramColor(fraction: Float): Color = when {
 }
 
 fun ShizukuState.title(): String = when (this) {
-    ShizukuState.READY -> "Shizuku активен"
-    ShizukuState.NOT_RUNNING -> "Shizuku не запущен"
-    ShizukuState.NO_PERMISSION -> "Нет разрешения Shizuku"
-    ShizukuState.NOT_INSTALLED -> "Shizuku не установлен"
+    ShizukuState.READY -> tr("Shizuku активен", "Shizuku active")
+    ShizukuState.NOT_RUNNING -> tr("Shizuku не запущен", "Shizuku not running")
+    ShizukuState.NO_PERMISSION -> tr("Нет разрешения Shizuku", "No Shizuku permission")
+    ShizukuState.NOT_INSTALLED -> tr("Shizuku не установлен", "Shizuku not installed")
 }
 
 @Composable
@@ -112,10 +114,10 @@ fun FullModeBanner(state: ShizukuState, onOpenSettings: () -> Unit) {
     ) {
         Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = Palette.Warn)
         Text(
-            "Базовый режим: ${state.title().replaceFirstChar { it.lowercase() }}. Включите полный режим, чтобы останавливать приложения и чистить кэш.",
+            tr("Базовый режим: ${state.title().replaceFirstChar { it.lowercase() }}. Включите полный режим, чтобы останавливать приложения и чистить кэш.", "Basic mode: ${state.title().replaceFirstChar { it.lowercase() }}. Enable full mode to stop apps and clear cache."),
             modifier = Modifier.weight(1f),
         )
-        OutlinedButton(onClick = onOpenSettings, modifier = Modifier.heightIn(min = MinTouch)) { Text("Как включить") }
+        OutlinedButton(onClick = onOpenSettings, modifier = Modifier.heightIn(min = MinTouch)) { Text(tr("Как включить", "How to enable")) }
     }
 }
 

@@ -18,6 +18,9 @@ import app.mcleaner.update.UpdateManager
 /** Manual DI. `shizuku` is handed out as `Privileged`: it reports unavailable whenever Shizuku is not READY. */
 class AppContainer(context: Context) {
     val appContext: Context = context.applicationContext
+
+    /** First: sets the app language before any text is produced. */
+    val ui = app.mcleaner.data.UiPrefs(appContext)
     val settings = SettingsStore(appContext)
     val shizuku = ShizukuPrivileged(appContext)
     val stats = SystemStatsRepository(appContext, shizuku)

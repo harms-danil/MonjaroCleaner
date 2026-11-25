@@ -1,5 +1,6 @@
 package app.mcleaner.ui.cleanup
 
+import app.mcleaner.core.i18n.tr
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.mcleaner.AppContainer
@@ -43,8 +44,8 @@ class CleanupViewModel(private val c: AppContainer) : ViewModel() {
         } else {
             val freed = (before - c.apps.totalCacheBytes()).coerceAtLeast(0)
             _ui.value = _ui.value.copy(
-                message = "Кэш очищен у ${result.cleared} приложений" +
-                    if (freed > 0) ", освобождено ${app.mcleaner.ui.common.Formatters.bytes(freed)}" else "",
+                message = tr("Кэш очищен у ${result.cleared} приложений", "Cache cleared for ${result.cleared} apps") +
+                    if (freed > 0) tr(", освобождено ${app.mcleaner.ui.common.Formatters.bytes(freed)}", ", freed ${app.mcleaner.ui.common.Formatters.bytes(freed)}") else "",
             )
         }
     }
@@ -52,7 +53,7 @@ class CleanupViewModel(private val c: AppContainer) : ViewModel() {
     fun confirmTrimAll() = work {
         _ui.value = _ui.value.copy(askTrimAll = false)
         val ok = c.cacheCleaner.trimAll()
-        _ui.value = _ui.value.copy(message = if (ok) "Кэш всех приложений очищен" else "Не удалось очистить кэш")
+        _ui.value = _ui.value.copy(message = if (ok) tr("Кэш всех приложений очищен", "All apps' cache cleared") else tr("Не удалось очистить кэш", "Could not clear cache"))
     }
 
     fun dismissTrimAll() {
@@ -87,7 +88,7 @@ class CleanupViewModel(private val c: AppContainer) : ViewModel() {
         val items = _ui.value.selectedItems
         _ui.value = _ui.value.copy(confirmDelete = false)
         val removed = c.junkCleaner.delete(items)
-        _ui.value = _ui.value.copy(message = "Удалено: $removed из ${items.size}")
+        _ui.value = _ui.value.copy(message = tr("Удалено: $removed из ${items.size}", "Deleted: $removed of ${items.size}"))
         val rescanned = c.junkCleaner.scan(c.settings.current().whitelist).groupBy { it.category }
         _ui.value = _ui.value.copy(junk = rescanned, selected = JunkSelection.retain(_ui.value.selected, rescanned))
     }

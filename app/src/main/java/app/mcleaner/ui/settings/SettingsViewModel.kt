@@ -1,5 +1,6 @@
 package app.mcleaner.ui.settings
 
+import app.mcleaner.core.i18n.tr
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.mcleaner.AppContainer
@@ -52,7 +53,7 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
     fun resetWhitelist() {
         viewModelScope.launch {
             c.settings.resetWhitelist()
-            _message.value = "Белый список сброшен к стандартному"
+            _message.value = tr("Белый список сброшен к стандартному", "Whitelist reset to default")
         }
     }
 
@@ -75,7 +76,7 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
         viewModelScope.launch {
             val frozen = c.settings.current().frozen
             val n = c.freezeManager.unfreezeAll(frozen)
-            _message.value = "Разморожено: $n из ${frozen.size}"
+            _message.value = tr("Разморожено: $n из ${frozen.size}", "Unfrozen: $n of ${frozen.size}")
         }
     }
 

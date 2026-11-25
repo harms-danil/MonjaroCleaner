@@ -1,5 +1,6 @@
 package app.mcleaner.privileged
 
+import app.mcleaner.core.i18n.tr
 import android.content.ComponentName
 import android.content.Context
 import android.content.ServiceConnection
@@ -78,7 +79,7 @@ class ShizukuPrivileged(private val context: Context) : Privileged {
     }
 
     override suspend fun exec(command: String): ShellResult {
-        val s = awaitService() ?: return ShellResult(-1, "Shizuku недоступен")
+        val s = awaitService() ?: return ShellResult(-1, tr("Shizuku недоступен", "Shizuku unavailable"))
         return withContext(Dispatchers.IO) {
             try {
                 val raw = s.exec(command) ?: return@withContext ShellResult(-1, "")

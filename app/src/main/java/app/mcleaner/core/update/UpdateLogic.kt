@@ -62,6 +62,7 @@ object ReleaseParser {
     }
 
     /** Release notes = headline, CHANGELOG section, then "**Установка:**…". Keep the section only. */
+    // (The notes are Russian-only, like the CHANGELOG.)
     fun changesFrom(body: String): String {
         val lines = body.replace("\r", "").lines()
         val section = lines.drop(1).takeWhile { !it.trimStart().startsWith("**Установка:**") }

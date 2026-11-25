@@ -1,5 +1,6 @@
 package app.mcleaner.ui.apps
 
+import app.mcleaner.core.i18n.tr
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -41,7 +42,7 @@ fun AppActionsSheet(
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(app.label, style = MaterialTheme.typography.titleLarge)
             Text(
-                "${app.packageName} · ОЗУ ${app.pssKb?.let(Formatters::kb) ?: "—"} · кэш ${app.cacheBytes?.let(Formatters::bytes) ?: "—"}",
+                tr("${app.packageName} · ОЗУ ${app.pssKb?.let(Formatters::kb) ?: "—"} · кэш ${app.cacheBytes?.let(Formatters::bytes) ?: "—"}", "${app.packageName} · RAM ${app.pssKb?.let(Formatters::kb) ?: "—"} · cache ${app.cacheBytes?.let(Formatters::bytes) ?: "—"}"),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -49,16 +50,16 @@ fun AppActionsSheet(
                     block()
                     onDismiss()
                 }
-                if (canStop) SheetButton("Остановить", act(if (full) onStop else onOpenSettings))
-                SheetButton("Очистить кэш", act(if (full) onClearCache else onOpenSettings))
-                if (full && app.isFrozen) SheetButton("Разморозить", act(onUnfreeze))
-                if (full && canFreeze && !app.isFrozen) SheetButton("Заморозить", act(onFreeze))
-                SheetButton("Открыть в настройках", act(onOpenSettings))
+                if (canStop) SheetButton(tr("Остановить", "Stop"), act(if (full) onStop else onOpenSettings))
+                SheetButton(tr("Очистить кэш", "Clear cache"), act(if (full) onClearCache else onOpenSettings))
+                if (full && app.isFrozen) SheetButton(tr("Разморозить", "Unfreeze"), act(onUnfreeze))
+                if (full && canFreeze && !app.isFrozen) SheetButton(tr("Заморозить", "Freeze"), act(onFreeze))
+                SheetButton(tr("Открыть в настройках", "Open in system settings"), act(onOpenSettings))
             }
             Row(Modifier.fillMaxWidth().heightIn(min = MinTouch), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("В белом списке")
-                    Text("«Ускорить» не будет останавливать и чистить это приложение", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(tr("В белом списке", "In whitelist"))
+                    Text(tr("«Ускорить» не будет останавливать и чистить это приложение", "Boost will not stop or clear this app"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Switch(checked = whitelisted, onCheckedChange = onWhitelist)
             }
