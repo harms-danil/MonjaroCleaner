@@ -40,10 +40,20 @@ class ShizukuInstaller(private val context: Context) {
                 "Разрешите MCleaner устанавливать приложения, вернитесь и нажмите «Установить Shizuku» ещё раз.",
                 "Allow MCleaner to install apps, come back and tap Install Shizuku again.",
             )
-            context.startActivity(
-                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            )
+            val pkg = Uri.parse("package:${context.packageName}")
+            val opened = runCatching {
+                context.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, pkg).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            }.isSuccess
+            if (!opened) {
+                // Some head unit firmwares strip this settings screen: fall back to MCleaner's app info.
+                _message.value = tr(
+                    "Экран «Установка неизвестных приложений» недоступен. В сведениях о MCleaner разрешите установку приложений, вернитесь и нажмите «Установить Shizuku» ещё раз.",
+                    "The Install unknown apps screen is unavailable. In MCleaner's app info allow installing apps, come back and tap Install Shizuku again.",
+                )
+                runCatching {
+                    context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }
+            }
             return false
         }
         _busy.value = true

@@ -95,7 +95,7 @@ class SettingsBackupTest {
 
     @Test
     fun `schedule and memory alert survive a round trip`() {
-        val data = BackupData(setOf("a"), emptySet(), autoBoost = false, stopGoogle = true, scheduleMinutes = 30, lowMemoryAlert = true, lowMemoryPercent = 20)
+        val data = BackupData(setOf("a.b"), emptySet(), autoBoost = false, stopGoogle = true, scheduleMinutes = 30, lowMemoryAlert = true, lowMemoryPercent = 20)
         assertEquals(data, SettingsBackup.decode(SettingsBackup.encode(data)))
     }
 }

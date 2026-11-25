@@ -62,7 +62,7 @@ fun MainScreen() {
     LaunchedEffect(shizuku) {
         if (shizuku == ShizukuState.READY) {
             c.apps.ensureGrants()
-            c.syncSettingsBackup() // file access may have just been granted
+            runCatching { c.syncSettingsBackup() } // file access may have just been granted; I/O runs on Dispatchers.IO
             c.updates.cleanupStaged()
         }
         if (previous == ShizukuState.READY.ordinal && shizuku != ShizukuState.READY) {

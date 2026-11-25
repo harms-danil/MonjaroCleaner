@@ -7,11 +7,25 @@ object LowMemoryGate {
     const val DEFAULT_PERCENT = 15
     val PERCENT_CHOICES = listOf(10, 15, 20, 25)
 
+    /** A short dip (an app starting) is not worth a notification while driving. */
+    const val MIN_LOW_CHECKS = 2
+    const val SUSTAINED_MS = 60_000L
+
+    /** Memory has been below the threshold since [sinceMs], for [checks] readings in a row. */
+    data class LowStreak(val sinceMs: Long, val checks: Int)
+
     fun freePercent(totalKb: Long, availableKb: Long): Int =
         if (totalKb <= 0) 0 else (availableKb * 100 / totalKb).toInt()
 
-    fun shouldAlert(freePercent: Int, thresholdPercent: Int, lastAlertMs: Long?, nowMs: Long): Boolean {
-        if (freePercent >= thresholdPercent) return false
+    /** The streak after one more reading; null when memory is fine again. Use a monotonic clock for [nowMs]. */
+    fun track(previous: LowStreak?, freePercent: Int, thresholdPercent: Int, nowMs: Long): LowStreak? = when {
+        freePercent >= thresholdPercent -> null
+        previous == null || previous.sinceMs > nowMs -> LowStreak(sinceMs = nowMs, checks = 1)
+        else -> previous.copy(checks = previous.checks + 1)
+    }
+
+    fun shouldAlert(streak: LowStreak?, lastAlertMs: Long?, nowMs: Long): Boolean {
+        if (streak == null || streak.checks < MIN_LOW_CHECKS || nowMs - streak.sinceMs < SUSTAINED_MS) return false
         return lastAlertMs == null || lastAlertMs > nowMs || nowMs - lastAlertMs >= COOLDOWN_MS
     }
 

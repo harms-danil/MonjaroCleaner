@@ -74,14 +74,17 @@ class AppContainer(context: Context) {
     /**
      * Restores settings from `/sdcard/MCleaner/settings.json` on the first run of an install.
      * Waits (does nothing) while there is no file access, so a reinstall without access cannot wipe the backup.
-     * Safe to call repeatedly: at start and whenever access may have appeared (Shizuku granted).
+     * Safe to call repeatedly and concurrently: at start, on every settings change and whenever access may have
+     * appeared (Shizuku granted). File I/O runs on Dispatchers.IO; writes are serialized inside [folder].
      */
     suspend fun syncSettingsBackup() {
-        if (!settings.isInitialized()) {
-            val read = folder.readBackup() ?: return
-            settings.initialize(read.getOrNull())
+        kotlinx.coroutines.withContext(Dispatchers.IO) {
+            if (!settings.isInitialized()) {
+                val read = folder.readBackup() ?: return@withContext
+                settings.initialize(read.getOrNull())
+            }
+            folder.writeBackup { settings.current().toBackup() }
         }
-        folder.writeBackup(settings.current().toBackup())
     }
 
     val freezeManager = FreezeManager(

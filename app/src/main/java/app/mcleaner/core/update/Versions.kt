@@ -57,6 +57,9 @@ data class BackupData(
 object SettingsBackup {
     private const val FORMAT = 1
 
+    /** More than any head unit has installed; bounds what a foreign file can push into the settings. */
+    const val MAX_PACKAGES = 500
+
     fun encode(d: BackupData): String = JSONObject()
         .put("format", FORMAT)
         .put("whitelist", JSONArray(d.whitelist.sorted()))
@@ -74,8 +77,8 @@ object SettingsBackup {
             null
         } else {
             BackupData(
-                whitelist = o.strings("whitelist"),
-                frozen = o.strings("frozen"),
+                whitelist = o.packages("whitelist"),
+                frozen = o.packages("frozen"),
                 autoBoost = o.optBoolean("autoBoost", false),
                 stopGoogle = o.optBoolean("stopGoogle", false),
                 scheduleMinutes = o.optInt("scheduleMinutes", 0).coerceIn(0, 24 * 60),
@@ -87,9 +90,15 @@ object SettingsBackup {
         null
     }
 
-    private fun JSONObject.strings(key: String): Set<String> {
+    private val packageName = Regex("""^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$""")
+
+    /** Package names only (the file is writable by any app with storage access), at most [MAX_PACKAGES]. */
+    private fun JSONObject.packages(key: String): Set<String> {
         val a = optJSONArray(key) ?: return emptySet()
-        return (0 until a.length()).mapNotNull { a.optString(it).takeIf(String::isNotBlank) }.toSet()
+        return (0 until a.length()).asSequence()
+            .mapNotNull { a.opt(it) as? String }
+            .filter { it.length <= 255 && packageName.matches(it) }
+            .distinct().take(MAX_PACKAGES).toSet()
     }
 }
 

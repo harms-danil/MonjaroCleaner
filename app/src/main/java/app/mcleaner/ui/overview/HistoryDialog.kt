@@ -79,7 +79,8 @@ fun HistoryDialog(store: HistoryStore, onDismiss: () -> Unit) {
                 }
                 Text(tr("Последние", "Latest"), style = MaterialTheme.typography.titleMedium)
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max = 220.dp)) {
-                    items(records.take(50), key = { it.timeMs }) { r ->
+                    // No key: timeMs is not unique (two boosts in one ms, or a reset clock), and duplicate keys crash.
+                    items(records.take(50)) { r ->
                         Row(Modifier.fillMaxWidth().heightIn(min = 40.dp)) {
                             Text(fmt.format(Date(r.timeMs)), Modifier.width(140.dp), fontSize = 15.sp)
                             Text(sourceTitle(r.source), Modifier.width(150.dp), fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)

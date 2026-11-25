@@ -117,7 +117,21 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
     fun importFrom(uri: Uri) {
         viewModelScope.launch {
             val text = withContext(Dispatchers.IO) {
-                runCatching { c.appContext.contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() } }.getOrNull()
+                runCatching {
+                    c.appContext.contentResolver.openInputStream(uri)!!.use { input ->
+                        // A settings file is a few KB; refuse anything over 1 MB instead of reading it whole.
+                        // (InputStream.readNBytes is API 33+, the head unit runs Android 9.)
+                        val maxBytes = 1 shl 20
+                        val out = java.io.ByteArrayOutputStream()
+                        val buf = ByteArray(8 * 1024)
+                        while (out.size() <= maxBytes) {
+                            val n = input.read(buf)
+                            if (n < 0) break
+                            out.write(buf, 0, n)
+                        }
+                        if (out.size() > maxBytes) null else out.toByteArray().decodeToString()
+                    }
+                }.getOrNull()
             }
             val data = text?.let(SettingsBackup::decode)
             if (data == null) _message.value = tr("Это не файл настроек MCleaner", "This is not an MCleaner settings file")
