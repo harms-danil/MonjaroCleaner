@@ -40,7 +40,10 @@ class CleanupViewModel(private val c: AppContainer) : ViewModel() {
         val before = c.apps.totalCacheBytes()
         val apps = c.apps.loadApps()
         val whitelist = c.settings.current().whitelist
-        val targets = BoostPolicy.cacheTargets(apps, whitelist)
+        // Same protection as Boost: apps in use (playing, navigating, accessibility, launcher, keyboard) keep their cache.
+        val ctx = c.boostContext()
+        val inUse = ctx.busyPackages + listOfNotNull(ctx.launcherPackage, ctx.imePackage)
+        val targets = BoostPolicy.cacheTargets(apps, whitelist, inUse)
         val result = c.cacheCleaner.clearMany(targets, c.apps.currentUser())
         if (result.perPackageUnsupported) {
             val ext = c.cacheCleaner.clearExternal(targets, android.os.Environment.getExternalStorageDirectory().path)
