@@ -4,6 +4,8 @@ import kotlinx.coroutines.delay
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
+import java.net.URI
+import java.net.URLDecoder
 
 const val UPDATE_REPO = "harms-danil/MonjaroCleaner"
 const val LATEST_RELEASE_URL = "https://api.github.com/repos/$UPDATE_REPO/releases/latest"
@@ -18,13 +20,20 @@ object Version {
     }
 
     fun isNewer(remote: String, current: String): Boolean {
-        val r = parse(remote) ?: return false
-        val c = parse(current) ?: return false
-        for (i in 0 until maxOf(r.size, c.size)) {
-            val d = r.getOrElse(i) { 0 } - c.getOrElse(i) { 0 }
-            if (d != 0) return d > 0
+        if (parse(remote) == null || parse(current) == null) return false
+        return compare(remote, current) > 0
+    }
+
+    /** Numeric order, "1.2" == "1.2.0"; unparseable versions sort below everything. */
+    fun compare(a: String, b: String): Int {
+        val x = parse(a)
+        val y = parse(b)
+        if (x == null || y == null) return (if (x == null) 0 else 1) - (if (y == null) 0 else 1)
+        for (i in 0 until maxOf(x.size, y.size)) {
+            val d = x.getOrElse(i) { 0 }.compareTo(y.getOrElse(i) { 0 })
+            if (d != 0) return d
         }
-        return false
+        return 0
     }
 }
 
@@ -51,10 +60,11 @@ object ReleaseParser {
         when {
             o.optBoolean("draft") || o.optBoolean("prerelease") -> null
             Version.parse(version) == null -> null
-            apk == null || !url.startsWith(DOWNLOAD_PREFIX) -> null
+            apk == null || !DownloadUrl.isAllowed(url) -> null
             else -> {
                 val body = o.optString("body")
-                ReleaseInfo(version, changesFrom(body), url, apk.optLong("size"), sha.find(body)?.groupValues?.get(1)?.lowercase())
+                // Every published release carries its SHA-256; without it the file cannot be checked.
+                sha.find(body)?.groupValues?.get(1)?.lowercase()?.let { ReleaseInfo(version, changesFrom(body), url, apk.optLong("size"), it) }
             }
         }
     } catch (_: JSONException) {
@@ -87,5 +97,57 @@ object Retry {
             }
         }
         throw last ?: IOException("no attempts")
+    }
+}
+
+/** Where an APK may be downloaded from, and how big it may be. */
+object DownloadUrl {
+    const val MAX_APK_BYTES = 50L * 1024 * 1024
+
+    /** https, github.com, our repo's release assets only; no dot segments, encoded or not. */
+    fun isAllowed(url: String): Boolean = runCatching {
+        val u = URI(url)
+        val decoded = URLDecoder.decode(u.rawPath.orEmpty(), "UTF-8")
+        u.normalize().toString() == url && url.startsWith(DOWNLOAD_PREFIX) && u.userInfo == null &&
+            u.rawQuery == null && u.rawFragment == null && "/." !in decoded && "\\" !in decoded
+    }.getOrDefault(false)
+
+    fun tooBig(bytes: Long) = bytes > MAX_APK_BYTES
+}
+
+enum class ApkVerdict { OK, NOT_APK, WRONG_PACKAGE, WRONG_SIGNER }
+
+/** An APK may be installed only if it is MCleaner signed with exactly the installed app's certificates. */
+object ApkTrust {
+    fun verdict(apkPackage: String?, apkCerts: List<ByteArray>, ownPackage: String, ownCerts: List<ByteArray>): ApkVerdict {
+        val theirs = apkCerts.map(::hex).toSet()
+        val ours = ownCerts.map(::hex).toSet()
+        return when {
+            apkPackage == null -> ApkVerdict.NOT_APK
+            apkPackage != ownPackage -> ApkVerdict.WRONG_PACKAGE
+            ours.isEmpty() || theirs != ours -> ApkVerdict.WRONG_SIGNER
+            else -> ApkVerdict.OK
+        }
+    }
+
+    fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it) }
+}
+
+/** Output of `sha256sum <file>` -> lower-case hash, or null if the tool failed. */
+object ShellSha {
+    private val line = Regex("""^([0-9a-fA-F]{64})(\s|$)""")
+
+    fun parse(out: String): String? = line.find(out.trim())?.groupValues?.get(1)?.lowercase()
+}
+
+/** Result of the detached `pm install`. */
+enum class InstallOutcome { SUCCESS_PENDING, FAILED, TIMEOUT }
+
+object InstallLog {
+    /** What `pm install` wrote so far: success, failure, or null while it is still running. */
+    fun verdict(out: String): InstallOutcome? = when {
+        "Failure" in out || "Error" in out || "Exception" in out -> InstallOutcome.FAILED
+        "Success" in out -> InstallOutcome.SUCCESS_PENDING
+        else -> null
     }
 }

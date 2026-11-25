@@ -22,9 +22,8 @@ class MCleanerFolder(private val context: Context, private val hasAccess: () -> 
         shared.isDirectory && shared.canWrite()
     }.getOrDefault(false)
 
-    /** Downloaded versions. Shell (Shizuku) can read both locations. */
-    fun updatesDir(): File =
-        if (available) File(shared, "updates") else File(context.getExternalFilesDir(null) ?: context.cacheDir, "update")
+    /** Downloaded versions, in app-private storage: no other app can plant or swap an APK there. */
+    fun updatesDir(): File = File(context.filesDir, "updates")
 
     private val backupFile: File get() = File(shared, "settings.json")
 

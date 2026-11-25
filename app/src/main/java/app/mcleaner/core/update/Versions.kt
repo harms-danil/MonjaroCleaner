@@ -15,7 +15,7 @@ object ApkFiles {
 
     /** Versions to remove so that only the [keep] newest stay. */
     fun toDelete(versions: List<String>, keep: Int): List<String> =
-        versions.sortedWith { a, b -> if (Version.isNewer(a, b)) -1 else if (Version.isNewer(b, a)) 1 else 0 }.drop(keep)
+        versions.sortedWith { a, b -> Version.compare(b, a) }.drop(keep)
 }
 
 data class VersionEntry(
@@ -25,6 +25,8 @@ data class VersionEntry(
     val onDevice: Boolean,
     /** Present when the version is published on GitHub. */
     val release: ReleaseInfo?,
+    /** False below [VersionCatalog.MIN_INSTALLABLE]: such a version could never update itself again. */
+    val installable: Boolean = true,
 )
 
 object VersionCatalog {
@@ -33,12 +35,15 @@ object VersionCatalog {
 
     fun restoresSettings(version: String) = !Version.isNewer(RESTORE_SINCE, version)
 
+    /** Oldest version that can update itself on Android 9; older ones are listed but not offered. */
+    const val MIN_INSTALLABLE = "1.2.2"
+
     fun merge(local: Set<String>, remote: List<ReleaseInfo>, current: String): List<VersionEntry> {
         val byVersion = remote.associateBy { it.version }
         return (local + byVersion.keys)
             .filter { Version.parse(it) != null && (Version.isNewer(it, current) || Version.isNewer(current, it)) }
-            .map { VersionEntry(it, Version.isNewer(it, current), it in local, byVersion[it]) }
-            .sortedWith { a, b -> if (Version.isNewer(a.version, b.version)) -1 else 1 }
+            .map { VersionEntry(it, Version.isNewer(it, current), it in local, byVersion[it], !Version.isNewer(MIN_INSTALLABLE, it)) }
+            .sortedWith { a, b -> Version.compare(b.version, a.version) }
     }
 }
 
