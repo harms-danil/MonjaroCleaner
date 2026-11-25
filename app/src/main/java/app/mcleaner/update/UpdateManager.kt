@@ -155,6 +155,12 @@ class UpdateManager(
     private fun busy() = job?.isActive == true ||
         _state.value.let { it is UpdateState.Downloading || it is UpdateState.Installing }
 
+    /** A successful install kills MCleaner before it can delete the staged copy: remove it on the next start. */
+    suspend fun cleanupStaged() {
+        val installing = _state.value.let { it is UpdateState.Downloading || it is UpdateState.Installing }
+        if (privileged.isAvailable && !installing) privileged.exec("rm -f $TMP/mcleaner-update.apk")
+    }
+
     /** Called by [UpdateInstallReceiver] with the system installer's verdict. */
     fun onInstallResult(status: Int, message: String?) {
         val release = (_state.value as? UpdateState.Installing)?.release ?: return
@@ -221,7 +227,7 @@ class UpdateManager(
     private suspend fun obtain(release: ReleaseInfo): File {
         val apk = apkFile(release.version)
         if (apk.isFile && verified(apk, release)) return apk
-        if (release.apkUrl.isEmpty()) throw IOException("файл версии ${release.version} повреждён, а на GitHub её нет")
+        if (release.apkUrl.isEmpty()) throw IOException("Файл версии ${release.version} повреждён, а на GitHub её нет")
         _state.value = UpdateState.Downloading(release, 0f)
         download(release, apk)
         withContext(Dispatchers.IO) { prune(keep = apk) }
@@ -229,7 +235,7 @@ class UpdateManager(
     }
 
     private suspend fun download(release: ReleaseInfo, target: File) = withContext(Dispatchers.IO) {
-        val dir = target.parentFile ?: throw IOException("нет папки для загрузки")
+        val dir = target.parentFile ?: throw IOException("Нет папки для загрузки")
         dir.mkdirs()
         dir.listFiles().orEmpty().filter { it.name.endsWith(".part") }.forEach { it.delete() }
         val part = File(target.path + ".part")
@@ -259,10 +265,10 @@ class UpdateManager(
             conn.disconnect()
         }
         target.delete()
-        if (!part.renameTo(target)) throw IOException("не удалось сохранить файл")
+        if (!part.renameTo(target)) throw IOException("Не удалось сохранить файл")
         if (!verified(target, release)) {
             target.delete()
-            throw IOException("файл скачался повреждённым")
+            throw IOException("Файл скачался повреждённым, попробуйте ещё раз")
         }
     }
 
@@ -305,8 +311,12 @@ class UpdateManager(
     private suspend fun install(release: ReleaseInfo, apk: File) {
         if (privileged.isAvailable) {
             // On success the system replaces this process; we only get here again on failure.
-            val r = privileged.exec("pm install -r ${shellQuote(apk.absolutePath)}")
-            if (r.ok) return
+            val staged = stage(apk)
+            if (staged != null) {
+                val r = privileged.exec("pm install -r $staged")
+                if (r.ok) return
+                privileged.exec("rm -f $staged")
+            }
         }
         if (!context.packageManager.canRequestPackageInstalls()) {
             _state.value = UpdateState.NeedsPermission(release)
@@ -321,19 +331,31 @@ class UpdateManager(
      * uninstall → install the old one (or the current one back on failure) → start MCleaner.
      */
     private suspend fun rollbackTo(release: ReleaseInfo, apk: File) {
-        val inPlace = privileged.exec("pm install -r -d ${shellQuote(apk.absolutePath)}")
+        val staged = stage(apk) ?: throw IOException("Не удалось подготовить файл для установки")
+        val inPlace = privileged.exec("pm install -r -d $staged")
         if (inPlace.ok) return
+        privileged.exec("rm -f $staged")
         val target = "$TMP/mcleaner-target.apk"
         val current = "$TMP/mcleaner-current.apk"
         val copy = privileged.exec(
             "cp ${shellQuote(apk.absolutePath)} $target && cp ${shellQuote(context.applicationInfo.sourceDir)} $current && chmod 644 $target $current",
         )
-        if (!copy.ok) throw IOException("не удалось подготовить файлы для переустановки: ${copy.out.take(200)}")
+        if (!copy.ok) throw IOException("Не удалось подготовить файлы для переустановки: ${copy.out.take(200)}")
         val script = RollbackScript.reinstallSteps(target, current, context.packageName, "${context.packageName}/.MainActivity")
         val r = privileged.exec(RollbackScript.detached(script))
-        if (!r.ok) throw IOException("не удалось запустить переустановку: ${r.out.take(200)}")
+        if (!r.ok) throw IOException("Не удалось запустить переустановку: ${r.out.take(200)}")
         // MCleaner is uninstalled within seconds; nothing else to do here.
         _state.value = UpdateState.Installing(release)
+    }
+
+    /**
+     * `pm install <path>` makes system_server open the file itself, and on Android 9 SELinux forbids it
+     * to read shared storage (/sdcard). /data/local/tmp is readable, so copy the APK there first.
+     */
+    private suspend fun stage(apk: File): String? {
+        val target = "$TMP/mcleaner-update.apk"
+        val r = privileged.exec("cp ${shellQuote(apk.absolutePath)} $target && chmod 644 $target")
+        return if (r.ok) target else null
     }
 
     private fun installWithSession(apk: File) {
@@ -358,8 +380,10 @@ class UpdateManager(
 
     private fun describe(e: Throwable?): String = when (e) {
         is HttpStatusException -> if (e.code == 403) "GitHub временно ограничил запросы, попробуйте позже" else "GitHub ответил ошибкой ${e.code}"
-        is IOException -> e.message?.let { if (it.startsWith("не ") || it.startsWith("файл")) it.replaceFirstChar(Char::uppercase) else "Нет связи с GitHub: $it" }
-            ?: "Нет связи с GitHub"
+        is java.net.UnknownHostException, is java.net.ConnectException, is java.net.SocketTimeoutException,
+        is java.net.NoRouteToHostException, is javax.net.ssl.SSLException -> "Нет связи с GitHub"
+        is java.io.FileNotFoundException -> "Нет доступа к папке для загрузки: ${e.message}"
+        is IOException -> e.message?.replaceFirstChar(Char::uppercase) ?: "Ошибка ввода-вывода"
         null -> "Неизвестная ошибка"
         else -> e.message ?: e.javaClass.simpleName
     }

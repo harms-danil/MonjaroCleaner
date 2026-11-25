@@ -61,6 +61,7 @@ fun MainScreen() {
         if (shizuku == ShizukuState.READY) {
             c.apps.ensureGrants()
             c.syncSettingsBackup() // file access may have just been granted
+            c.updates.cleanupStaged()
         }
         if (previous == ShizukuState.READY.ordinal && shizuku != ShizukuState.READY) {
             Toast.makeText(context, "Shizuku остановлен — базовый режим", Toast.LENGTH_LONG).show()

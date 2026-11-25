@@ -80,6 +80,13 @@ if ! $start_only; then
   ok "Права выданы"
 fi
 
+# Права на память на Android 9/10 выдаём и в режиме --start-only: без READ
+# MCleaner 1.2.0 не может скачать обновление (Permission denied).
+if $start_only && [[ "$(dsh getprop ro.build.version.sdk)" -lt 30 ]] && [[ "$(dsh pm path "$APP")" == *package:* ]]; then
+  dsh pm grant "$APP" android.permission.READ_EXTERNAL_STORAGE || true
+  dsh pm grant "$APP" android.permission.WRITE_EXTERNAL_STORAGE || true
+fi
+
 # --- запуск Shizuku ----------------------------------------------------
 [[ "$(dsh pm path "$SHIZUKU")" == *package:* ]] || die "Shizuku не установлен. Запустите скрипт без --start-only."
 

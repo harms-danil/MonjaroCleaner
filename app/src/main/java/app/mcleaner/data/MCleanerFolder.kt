@@ -13,7 +13,14 @@ import java.io.File
 class MCleanerFolder(private val context: Context, private val hasAccess: () -> Boolean) {
     private val shared: File get() = File(Environment.getExternalStorageDirectory(), "MCleaner")
 
-    val available: Boolean get() = hasAccess()
+    /**
+     * Permission alone is not proof (Android 9 with only WRITE granted reports access but denies it):
+     * check that the folder can really be created and written.
+     */
+    val available: Boolean get() = hasAccess() && runCatching {
+        shared.mkdirs()
+        shared.isDirectory && shared.canWrite()
+    }.getOrDefault(false)
 
     /** Downloaded versions. Shell (Shizuku) can read both locations. */
     fun updatesDir(): File =
