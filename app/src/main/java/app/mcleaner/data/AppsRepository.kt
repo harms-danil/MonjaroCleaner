@@ -156,4 +156,18 @@ class AppsRepository(private val context: Context, private val privileged: Privi
             }
         }
     }
+
+    fun canInstallApps(): Boolean = context.packageManager.canRequestPackageInstalls()
+
+    fun ignoresBatteryOptimizations(): Boolean =
+        context.getSystemService(android.os.PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName)
+
+    /** «Выдать все» with Shizuku: everything [ensureGrants] does plus app installs (updates) and no battery limits. */
+    suspend fun grantAll() {
+        if (!privileged.isAvailable) return
+        ensureGrants()
+        val me = context.packageName
+        if (!canInstallApps()) privileged.exec("appops set $me REQUEST_INSTALL_PACKAGES allow")
+        if (!ignoresBatteryOptimizations()) privileged.exec("dumpsys deviceidle whitelist +$me")
+    }
 }

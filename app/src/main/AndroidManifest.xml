@@ -25,6 +25,8 @@
     <!-- Only for self-update from GitHub releases (api.github.com, github.com). -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- «Разрешения» → «Без ограничений батареи»: the direct system dialog. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:name=".MCleanerApp"
@@ -103,6 +105,10 @@
 
         <receiver
             android:name=".update.UpdateInstallReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".privileged.ShizukuInstallReceiver"
             android:exported="false" />
 
         <receiver

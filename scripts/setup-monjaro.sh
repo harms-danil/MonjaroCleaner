@@ -5,21 +5,34 @@
 #   ./setup-monjaro.sh --start-only    # после перезагрузки магнитолы: только запустить Shizuku
 #   ./setup-monjaro.sh 192.168.1.50    # то же по сети (adb connect IP:5555)
 #
-# APK ищутся рядом с папкой проекта (../../MCleaner-*.apk, ../../shizuku-*.apk)
-# или в переменных MCLEANER_APK / SHIZUKU_APK.
+# Без папки проекта (нужны только adb и curl): скачайте этот файл и запустите его —
+#   curl -fsSLO https://raw.githubusercontent.com/harms-danil/MonjaroCleaner/main/scripts/setup-monjaro.sh
+#   bash setup-monjaro.sh --start-only
+#
+# APK ищутся рядом с папкой проекта (../../), рядом со скриптом, в текущей папке
+# или в переменных MCLEANER_APK / SHIZUKU_APK. Если их нет — скачиваются последние релизы с GitHub.
 set -euo pipefail
 
 APP=app.mcleaner
 SHIZUKU=moe.shizuku.privileged.api
-HERE="$(cd "$(dirname "$0")" && pwd)"
-APK_DIR="$(cd "$HERE/../.." && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Первая папка, где лежат APK: рядом с проектом, рядом со скриптом или текущая.
+find_apk() { # $1 = шаблон имени
+  local d f
+  for d in "$HERE/../.." "$HERE" "$(pwd)"; do
+    f="$(ls -t "$d"/$1 2>/dev/null | head -1 || true)"
+    [[ -n "$f" ]] && { echo "$f"; return 0; }
+  done
+  return 0
+}
 
 start_only=false
 target=""
 for arg in "$@"; do
   case "$arg" in
     --start-only) start_only=true ;;
-    -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,14p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) target="$arg" ;;
   esac
 done
@@ -52,16 +65,30 @@ devices=$("$ADB" devices | awk 'NR>1 && $2=="device"' | wc -l | tr -d ' ')
 ok "Устройство: $(dsh getprop ro.product.manufacturer) $(dsh getprop ro.product.model), Android $(dsh getprop ro.build.version.release)"
 
 # --- установка ---------------------------------------------------------
+# Скачивает APK последнего релиза репозитория $1 (имя файла — регулярка $2) во временную папку,
+# печатает путь. Сообщения — в stderr, чтобы не смешаться с путём.
+download_latest() {
+  local repo="$1" pattern="$2" url dir
+  command -v curl >/dev/null || { warn "Нет curl — не могу скачать $repo" >&2; return 0; }
+  url="$(curl -fsSL "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null \
+    | grep -oE '"browser_download_url": *"[^"]+"' | cut -d'"' -f4 | grep -E "$pattern" | head -1 || true)"
+  [[ -n "$url" ]] || { warn "Не нашёл APK в последнем релизе $repo" >&2; return 0; }
+  dir="${TMPDIR:-/tmp}/mcleaner-setup"; mkdir -p "$dir"
+  say "Скачиваю $(basename "$url")" >&2
+  curl -fsSL -o "$dir/$(basename "$url")" "$url" && echo "$dir/$(basename "$url")"
+}
 install_apk() { # $1 = путь, $2 = имя для вывода
   say "Устанавливаю $2 ($(basename "$1"))"
   "$ADB" install -r "$1" | tail -1
 }
 
 if ! $start_only; then
-  MCLEANER_APK="${MCLEANER_APK:-$(ls -t "$APK_DIR"/MCleaner-*.apk 2>/dev/null | head -1 || true)}"
-  SHIZUKU_APK="${SHIZUKU_APK:-$(ls -t "$APK_DIR"/shizuku-*.apk 2>/dev/null | head -1 || true)}"
-  [[ -f "$MCLEANER_APK" ]] || die "Не найден MCleaner-*.apk в $APK_DIR"
-  [[ -f "$SHIZUKU_APK" ]] || die "Не найден shizuku-*.apk в $APK_DIR"
+  MCLEANER_APK="${MCLEANER_APK:-$(find_apk 'MCleaner-*.apk')}"
+  SHIZUKU_APK="${SHIZUKU_APK:-$(find_apk 'shizuku-*.apk')}"
+  [[ -f "$MCLEANER_APK" ]] || MCLEANER_APK="$(download_latest harms-danil/MonjaroCleaner 'MCleaner-.*\.apk$')"
+  [[ -f "$SHIZUKU_APK" ]] || SHIZUKU_APK="$(download_latest RikkaApps/Shizuku 'shizuku-.*-release\.apk$')"
+  [[ -f "$MCLEANER_APK" ]] || die "Не удалось получить MCleaner APK (нет файла рядом и нет связи с GitHub)"
+  [[ -f "$SHIZUKU_APK" ]] || die "Не удалось получить Shizuku APK (нет файла рядом и нет связи с GitHub)"
 
   install_apk "$SHIZUKU_APK" "Shizuku"
   install_apk "$MCLEANER_APK" "MCleaner"

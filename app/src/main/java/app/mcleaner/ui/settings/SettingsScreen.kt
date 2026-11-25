@@ -64,6 +64,7 @@ fun SettingsScreen() {
                     Text(tr("Полный режим (Shizuku)", "Full mode (Shizuku)"), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                     Badge(shizuku.title(), if (full) BadgeKind.GOOD else BadgeKind.WARN)
                 }
+                ShizukuInstallRow(container().shizukuInstaller, showButton = shizuku == ShizukuState.NOT_INSTALLED)
                 if (!full) {
                     ShizukuGuide()
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -78,6 +79,7 @@ fun SettingsScreen() {
                     Text(tr("Приложения останавливаются и кэш чистится от имени системы (ADB). Root не нужен.", "Apps are stopped and cache is cleared with system privileges (ADB). No root needed."), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+            Section { PermissionsSection(container(), full) }
             Section { AppearanceSection(container().ui) }
             Section {
                 SwitchRow(

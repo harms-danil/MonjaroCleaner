@@ -27,6 +27,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.mcleaner.core.update.VersionCatalog
 import app.mcleaner.core.update.VersionEntry
@@ -119,6 +121,8 @@ fun UpdateSection(updates: UpdateManager) {
     val state by updates.state.collectAsStateWithLifecycle()
     var showVersions by remember { mutableStateOf(false) }
     if (showVersions) VersionsDialog(updates, onDismiss = { showVersions = false })
+    var showLicenses by remember { mutableStateOf(false) }
+    if (showLicenses) LicensesDialog(onDismiss = { showLicenses = false })
     val status = when (val s = state) {
         UpdateState.Idle -> null
         UpdateState.Checking -> tr("Проверяю…", "Checking…")
@@ -145,6 +149,7 @@ fun UpdateSection(updates: UpdateManager) {
         if (hasUpdate) {
             Button(onClick = updates::showDialog, modifier = Modifier.heightIn(min = MinTouch)) { Text(tr("Обновить", "Update")) }
         }
+        TextButton(onClick = { showLicenses = true }, modifier = Modifier.heightIn(min = MinTouch)) { Text(tr("Лицензии", "Licenses")) }
         OutlinedButton(onClick = { showVersions = true }, modifier = Modifier.heightIn(min = MinTouch)) { Text(tr("Другие версии", "Other versions")) }
         OutlinedButton(
             onClick = updates::manualCheck,
@@ -231,4 +236,34 @@ private fun VersionsDialog(updates: UpdateManager, onDismiss: () -> Unit) {
             dismissButton = { TextButton(onClick = { confirm = null }, modifier = Modifier.heightIn(min = MinTouch)) { Text(tr("Отмена", "Cancel")) } },
         )
     }
+}
+
+/** Third-party notices bundled in assets/licenses (Shizuku is redistributed under Apache-2.0). */
+@Composable
+private fun LicensesDialog(onDismiss: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val text = remember {
+        val dir = "licenses"
+        runCatching {
+            context.assets.list(dir).orEmpty().sorted().joinToString("\n\n────────\n\n") { name ->
+                context.assets.open("$dir/$name").bufferedReader().use { it.readText() }
+            }
+        }.getOrDefault("")
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(tr("Лицензии", "Licenses")) },
+        text = {
+            Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+                Text(
+                    tr(
+                        "MCleaner использует AndroidX и Jetpack Compose (Apache 2.0), библиотеку Shizuku API и встроенное приложение Shizuku (Apache 2.0), Kotlin и kotlinx.coroutines (Apache 2.0).",
+                        "MCleaner uses AndroidX and Jetpack Compose (Apache 2.0), the Shizuku API library and the bundled Shizuku app (Apache 2.0), Kotlin and kotlinx.coroutines (Apache 2.0).",
+                    ),
+                )
+                Text(text, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp))
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss, modifier = Modifier.heightIn(min = MinTouch)) { Text(tr("Закрыть", "Close")) } },
+    )
 }

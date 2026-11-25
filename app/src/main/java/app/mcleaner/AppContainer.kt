@@ -42,6 +42,7 @@ class AppContainer(context: Context) {
     val folder = MCleanerFolder(appContext, apps::hasAllFilesAccess)
     val updates = UpdateManager(appContext, shizuku, folder)
     val history = HistoryStore(appContext)
+    val shizukuInstaller = app.mcleaner.privileged.ShizukuInstaller(appContext)
 
     /** Outlives activities: boosts started from the home-screen icon, widget or notification. */
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
