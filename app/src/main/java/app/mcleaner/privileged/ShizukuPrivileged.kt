@@ -161,7 +161,8 @@ class ShizukuPrivileged(private val context: Context) : Privileged {
         // Android 9: shell has no REMOVE_TASKS (binder returns 0), but may remove stacks.
         val stopped = packageNames.toSet()
         val orphans = RecentTasks.orphansToRestore(RecentTasks.parseRecents(exec("dumpsys activity recents").out), stopped)
-        orphans.forEach { exec("am stack move-task $it ${RecentTasks.NO_SUCH_STACK} true") }
+        // Fails on purpose (no such stack) after restoring the card: silence it, the journal is not for expected errors.
+        orphans.forEach { exec("am stack move-task $it ${RecentTasks.NO_SUCH_STACK} true >/dev/null 2>&1; true") }
         val stacks = RecentTasks.stacksToRemove(RecentTasks.parseStacks(exec("am stack list").out), stopped)
         return stacks.count { exec("am stack remove $it").ok }.also {
             L.i("Recents", "removed $it stack(s) for $stopped (restored ${orphans.size} orphan card(s))")

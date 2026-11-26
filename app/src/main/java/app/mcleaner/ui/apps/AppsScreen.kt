@@ -37,6 +37,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -86,6 +87,9 @@ fun AppsScreen() {
         vm.consumeUnfrozen()
     }
     LaunchedEffect(full) { vm.reload() }
+    // A search is for right now: leaving the tab or the app starts the next visit with the full list.
+    DisposableEffect(Unit) { onDispose { vm.setQuery("") } }
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_STOP) { vm.setQuery("") }
     // Back from the system app page (where the internal cache is cleared): show fresh numbers.
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { vm.reloadIfStale() }
 
@@ -268,6 +272,10 @@ private val ACTION_WIDTH = 120.dp
 @Composable
 private fun SearchField(value: String, onChange: (String) -> Unit, modifier: Modifier) {
     var focused by remember { mutableStateOf(false) }
+    // Leaving the screen drops the focus, so coming back does not pop up the keyboard.
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_PAUSE) { focus.clearFocus() }
+    DisposableEffect(Unit) { onDispose { focus.clearFocus() } }
     val shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
     androidx.compose.foundation.text.BasicTextField(
         value = value,
