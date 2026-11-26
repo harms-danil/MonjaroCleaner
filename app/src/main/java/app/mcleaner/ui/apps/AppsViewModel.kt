@@ -177,7 +177,14 @@ class AppsViewModel(private val c: AppContainer) : ViewModel() {
     }
 
     fun setWhitelisted(app: AppInfo, on: Boolean) {
-        viewModelScope.launch { c.settings.setWhitelisted(app.packageName, on) }
+        viewModelScope.launch {
+            c.settings.setWhitelisted(app.packageName, on)
+            L.i("Apps", "whitelist ${if (on) "+" else "-"}${app.packageName}")
+            _ui.value = _ui.value.copy(
+                message = if (on) tr("${app.label}: в белом списке — «Ускорить» его не тронет", "${app.label}: whitelisted — Boost will not touch it")
+                else tr("${app.label}: убрано из белого списка", "${app.label}: removed from the whitelist"),
+            )
+        }
     }
 
     suspend fun icon(pkg: String): ImageBitmap? = icons[pkg] ?: withContext(Dispatchers.IO) {

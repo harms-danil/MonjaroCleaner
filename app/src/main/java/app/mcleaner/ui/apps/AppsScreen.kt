@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AddModerator
 import androidx.compose.material.icons.outlined.Android
+import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -53,6 +55,7 @@ import app.mcleaner.ui.common.MinTouch
 import app.mcleaner.ui.common.PermissionPlate
 import app.mcleaner.ui.common.SystemScreens
 import app.mcleaner.ui.common.containerViewModel
+import app.mcleaner.ui.theme.Palette
 
 @Composable
 fun AppsScreen() {
@@ -99,7 +102,7 @@ fun AppsScreen() {
                 Header(tr("ОЗУ", "RAM"), Modifier.width(100.dp))
                 Header(tr("ЦП", "CPU"), Modifier.width(80.dp))
                 Header(tr("Кэш", "Cache"), Modifier.width(100.dp))
-                Spacer(Modifier.width(150.dp))
+                Spacer(Modifier.width(MinTouch + 150.dp))
             }
             if (ui.loading && ui.apps.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -122,6 +125,7 @@ fun AppsScreen() {
                                 }
                             },
                             onClick = { selected = app },
+                            onWhitelist = { vm.setWhitelisted(app, it) },
                         )
                         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
                     }
@@ -194,6 +198,7 @@ private fun AppRow(
     actionLabel: String,
     onAction: () -> Unit,
     onClick: () -> Unit,
+    onWhitelist: (Boolean) -> Unit,
 ) {
     val icon by produceState<ImageBitmap?>(null, app.packageName) { value = loadIcon(app.packageName) }
     Row(
@@ -215,6 +220,13 @@ private fun AppRow(
         Text(app.pssKb?.let(Formatters::kb) ?: "—", Modifier.width(100.dp))
         Text(app.cpuPercent?.let(Formatters::percent) ?: "—", Modifier.width(80.dp))
         Text(app.cacheBytes?.let(Formatters::bytes) ?: "—", Modifier.width(100.dp))
+        IconButton(onClick = { onWhitelist(!whitelisted) }, modifier = Modifier.size(MinTouch)) {
+            Icon(
+                if (whitelisted) Icons.Outlined.VerifiedUser else Icons.Outlined.AddModerator,
+                contentDescription = if (whitelisted) tr("Убрать из белого списка", "Remove from whitelist") else tr("В белый список", "Add to whitelist"),
+                tint = if (whitelisted) Palette.Good else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         OutlinedButton(onClick = onAction, modifier = Modifier.width(150.dp).heightIn(min = 48.dp)) {
             Text(actionLabel, fontSize = 15.sp, maxLines = 1)
         }

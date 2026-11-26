@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.RocketLaunch
-import androidx.compose.material.icons.outlined.AddModerator
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.AlertDialog
@@ -57,7 +56,6 @@ fun OverviewScreen() {
     val stats by vm.stats.collectAsStateWithLifecycle()
     val ui by vm.ui.collectAsStateWithLifecycle()
     val shizuku by vm.shizuku.collectAsStateWithLifecycle()
-    val whitelist by vm.whitelist.collectAsStateWithLifecycle()
     val full = shizuku == ShizukuState.READY
     var showHistory by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     if (showHistory) HistoryDialog(app.mcleaner.ui.common.container().history) { showHistory = false }
@@ -140,20 +138,9 @@ fun OverviewScreen() {
                     )
                 }
                 list.forEach { app ->
-                    val listed = app.packageName in whitelist
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth()) {
                         Text(app.label, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(if (byCache) Formatters.bytes(app.cacheBytes ?: 0) else Formatters.kb(app.pssKb ?: 0))
-                        androidx.compose.material3.IconButton(
-                            onClick = { vm.setWhitelisted(app, !listed) },
-                            modifier = Modifier.size(MinTouch),
-                        ) {
-                            Icon(
-                                if (listed) Icons.Outlined.VerifiedUser else Icons.Outlined.AddModerator,
-                                contentDescription = if (listed) tr("Убрать из белого списка", "Remove from whitelist") else tr("В белый список", "Add to whitelist"),
-                                tint = if (listed) Palette.Good else MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
                     }
                 }
             }
