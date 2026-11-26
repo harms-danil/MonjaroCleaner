@@ -124,15 +124,36 @@ fun SettingsScreen() {
                 )
             }
             Section {
+                val frozenList by vm.frozenEntries.collectAsStateWithLifecycle()
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(tr("Замороженные приложения: ${settings?.frozen?.size ?: 0}", "Frozen apps: ${settings?.frozen?.size ?: 0}"))
+                    Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text(tr("Заморозка приложений: ${frozenList.size}", "Frozen apps: ${frozenList.size}"), style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            tr(
+                                "Замороженное приложение отключено системой, но не удалено: его не видно в списке приложений, оно не запускается, не работает в фоне и не занимает память. Данные и настройки сохраняются, после разморозки оно работает как раньше. " +
+                                    "Заморозить: «Приложения» → нажмите на приложение → «Заморозить» (только в полном режиме). Системные приложения, приложения машины, лаунчер, клавиатуру и белый список заморозить нельзя.",
+                                "A frozen app is disabled by the system but not uninstalled: it is hidden from the app list, does not start, does not run in the background and takes no memory. Its data and settings are kept; after unfreezing it works as before. " +
+                                    "To freeze: Apps → tap the app → Freeze (full mode only). System and car apps, the launcher, the keyboard and the whitelist cannot be frozen.",
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                     OutlinedButton(
                         onClick = vm::unfreezeAll,
                         enabled = full && !settings?.frozen.isNullOrEmpty(),
                         modifier = Modifier.heightIn(min = MinTouch),
                     ) { Text(tr("Разморозить всё", "Unfreeze all")) }
+                }
+                frozenList.forEach { (pkg, label) ->
+                    Row(Modifier.fillMaxWidth().heightIn(min = MinTouch), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(label)
+                            if (label != pkg) Text(pkg, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        androidx.compose.material3.TextButton(onClick = { vm.unfreeze(pkg) }, enabled = full, modifier = Modifier.heightIn(min = MinTouch)) {
+                            Text(tr("Разморозить", "Unfreeze"))
+                        }
+                    }
                 }
             }
             Section { BackupSection(vm) }

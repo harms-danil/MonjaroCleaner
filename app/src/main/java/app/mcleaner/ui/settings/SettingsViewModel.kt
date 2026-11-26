@@ -38,6 +38,19 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
         combine(c.settings.settings, installed) { s, apps -> WhitelistModel.entries(s.whitelist, apps) }
             .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    /** Frozen apps with their names (name = package when the app is no longer installed). */
+    val frozenEntries: StateFlow<List<Pair<String, String>>> =
+        combine(c.settings.settings, installed) { s, apps ->
+            s.frozen.sorted().map { pkg -> pkg to (apps.firstOrNull { it.packageName == pkg }?.label ?: pkg) }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    fun unfreeze(pkg: String) {
+        viewModelScope.launch {
+            val ok = c.freezeManager.unfreeze(pkg)
+            _message.value = if (ok) tr("Разморожено", "Unfrozen") else tr("Не удалось разморозить", "Could not unfreeze")
+        }
+    }
+
     init {
         loadInstalled()
     }
