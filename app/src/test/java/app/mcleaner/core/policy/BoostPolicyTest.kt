@@ -73,6 +73,15 @@ class BoostPolicyTest {
     }
 
     @Test
+    fun canClose_onlyRunningAppsThatMayBeStopped() {
+        assertTrue(BoostPolicy.canClose(app("com.shihab.diplay", running = true), "app.mcleaner"))
+        // Already stopped: nothing to close (the sheet used to still offer «Остановить»).
+        assertFalse(BoostPolicy.canClose(app("com.shihab.diplay", running = false), "app.mcleaner"))
+        assertFalse(BoostPolicy.canClose(app("com.android.systemui", system = true, running = true), "app.mcleaner"))
+        assertFalse(BoostPolicy.canClose(app("app.mcleaner", running = true), "app.mcleaner"))
+    }
+
+    @Test
     fun userBackgroundApp_isCandidate() {
         assertEquals(listOf("com.example.game"), BoostPolicy.killCandidates(listOf(app("com.example.game")), ctx()))
     }

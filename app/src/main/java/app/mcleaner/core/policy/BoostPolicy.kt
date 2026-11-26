@@ -39,6 +39,9 @@ object BoostPolicy {
     fun cacheTargets(apps: List<AppInfo>, whitelist: Set<String>, busy: Set<String> = emptySet()): List<String> =
         apps.map { it.packageName }.filter { it !in whitelist && it !in busy && !isCarSystem(it) }
 
+    /** «Закрыть» in the app list and the app sheet: running now, and allowed to be stopped by hand. */
+    fun canClose(app: AppInfo, selfPackage: String): Boolean = app.isRunning && canStopManually(app, selfPackage)
+
     /** Manual "Stop" in the app list: user apps and Google; never system or car packages. */
     fun canStopManually(app: AppInfo, selfPackage: String): Boolean {
         val pkg = app.packageName

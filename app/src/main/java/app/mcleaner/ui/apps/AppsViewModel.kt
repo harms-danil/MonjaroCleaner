@@ -129,7 +129,10 @@ class AppsViewModel(private val c: AppContainer) : ViewModel() {
 
     fun canStop(app: AppInfo): Boolean = BoostPolicy.canStopManually(app, selfPackage)
 
-    fun stop(app: AppInfo) = act(tr("${app.label}: остановлено", "${app.label}: stopped"), tr("${app.label}: не удалось остановить", "${app.label}: could not stop")) {
+    /** «Закрыть»: running now and allowed to be stopped by hand. */
+    fun canClose(app: AppInfo): Boolean = BoostPolicy.canClose(app, selfPackage)
+
+    fun stop(app: AppInfo) = act(tr("${app.label}: закрыто", "${app.label}: closed"), tr("${app.label}: не удалось закрыть", "${app.label}: could not close")) {
         c.shizuku.exec("am force-stop ${shellQuote(app.packageName)}").ok.also { ok ->
             if (ok) c.shizuku.removeTasks(listOf(app.packageName), c.apps.currentUser())
         }

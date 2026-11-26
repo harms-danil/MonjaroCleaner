@@ -108,7 +108,7 @@ fun AppsScreen() {
                 Header(tr("ОЗУ", "RAM"), Modifier.width(100.dp))
                 Header(tr("ЦП", "CPU"), Modifier.width(80.dp))
                 Header(tr("Кэш", "Cache"), Modifier.width(100.dp))
-                Spacer(Modifier.width(MinTouch + 150.dp))
+                Spacer(Modifier.width(MinTouch + ACTION_WIDTH * 2 + 8.dp))
             }
             if (ui.loading && ui.apps.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -122,13 +122,11 @@ fun AppsScreen() {
                             app = app,
                             whitelisted = app.packageName in whitelist,
                             loadIcon = vm::icon,
-                            actionLabel = if (app.isRunning && vm.canStop(app)) tr("Остановить", "Stop") else tr("Кэш", "Cache"),
-                            onAction = {
-                                when {
-                                    !full -> SystemScreens.appDetails(context, app.packageName)
-                                    app.isRunning && vm.canStop(app) -> vm.stop(app)
-                                    else -> vm.clearCache(app) { SystemScreens.appDetails(context, app.packageName) }
-                                }
+                            canClose = full && vm.canClose(app),
+                            onClose = { vm.stop(app) },
+                            onCache = {
+                                if (full) vm.clearCache(app) { SystemScreens.appDetails(context, app.packageName) }
+                                else SystemScreens.appDetails(context, app.packageName)
                             },
                             onClick = { selected = app },
                             onWhitelist = { vm.setWhitelisted(app, it) },
@@ -173,12 +171,14 @@ fun AppsScreen() {
         )
     }
 
-    selected?.let { app ->
+    selected?.let { picked ->
+        // Fresh data: the app may have been closed or unfrozen since the sheet was opened.
+        val app = ui.apps.firstOrNull { it.packageName == picked.packageName } ?: picked
         AppActionsSheet(
             app = app,
             full = full,
             whitelisted = app.packageName in whitelist,
-            canStop = vm.canStop(app),
+            canStop = vm.canClose(app),
             canFreeze = vm.canFreeze(app),
             onDismiss = { selected = null },
             onStop = { vm.stop(app) },
@@ -201,8 +201,9 @@ private fun AppRow(
     app: AppInfo,
     whitelisted: Boolean,
     loadIcon: suspend (String) -> ImageBitmap?,
-    actionLabel: String,
-    onAction: () -> Unit,
+    canClose: Boolean,
+    onClose: () -> Unit,
+    onCache: () -> Unit,
     onClick: () -> Unit,
     onWhitelist: (Boolean) -> Unit,
 ) {
@@ -233,8 +234,14 @@ private fun AppRow(
                 tint = if (whitelisted) Palette.Good else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        OutlinedButton(onClick = onAction, modifier = Modifier.width(150.dp).heightIn(min = 48.dp)) {
-            Text(actionLabel, fontSize = 15.sp, maxLines = 1)
+        OutlinedButton(onClick = onClose, enabled = canClose, modifier = Modifier.width(ACTION_WIDTH).heightIn(min = 48.dp)) {
+            Text(tr("Закрыть", "Close"), fontSize = 15.sp, maxLines = 1)
+        }
+        Spacer(Modifier.width(8.dp))
+        OutlinedButton(onClick = onCache, modifier = Modifier.width(ACTION_WIDTH).heightIn(min = 48.dp)) {
+            Text(tr("Кэш", "Cache"), fontSize = 15.sp, maxLines = 1)
         }
     }
 }
+
+private val ACTION_WIDTH = 120.dp

@@ -50,7 +50,7 @@ fun AppActionsSheet(
                     block()
                     onDismiss()
                 }
-                if (canStop) SheetButton(tr("Остановить", "Stop"), act(if (full) onStop else onOpenSettings))
+                if (canStop) SheetButton(tr("Закрыть", "Close"), act(if (full) onStop else onOpenSettings))
                 SheetButton(tr("Очистить кэш", "Clear cache"), act(if (full) onClearCache else onOpenSettings))
                 if (full && app.isFrozen) SheetButton(tr("Разморозить", "Unfreeze"), act(onUnfreeze))
                 if (full && canFreeze && !app.isFrozen) SheetButton(tr("Заморозить", "Freeze"), act(onFreeze))
