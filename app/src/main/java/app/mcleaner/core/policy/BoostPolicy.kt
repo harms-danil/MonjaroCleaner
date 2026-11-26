@@ -60,7 +60,8 @@ object BoostPolicy {
      */
     fun trimTargets(apps: List<AppInfo>, ctx: BoostContext): List<Pair<String, String>> {
         if (!ctx.gentleTrim) return emptyList()
-        return apps.filter { it.isRunning }.mapNotNull { a ->
+        // System processes (system_server «android», Settings) reject or ignore the signal; the launcher and keyboard take it.
+        return apps.filter { it.isRunning && (!it.isSystem || it.packageName == ctx.launcherPackage || it.packageName == ctx.imePackage) }.mapNotNull { a ->
             when (skipReason(a, ctx)) {
                 SkipReason.IN_USE -> a.packageName to "RUNNING_LOW"
                 SkipReason.WHITELIST -> a.packageName to if (a.packageName in ctx.busyPackages) "RUNNING_LOW" else "MODERATE"

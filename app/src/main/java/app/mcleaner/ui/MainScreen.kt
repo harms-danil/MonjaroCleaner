@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.CleaningServices
 import androidx.compose.material.icons.outlined.Settings
@@ -55,6 +56,7 @@ private enum class Tab(private val ru: String, private val en: String, val icon:
     APPS("Приложения", "Apps", Icons.Outlined.Apps),
     CLEANUP("Очистка", "Cleanup", Icons.Outlined.CleaningServices),
     MAINTENANCE("Обслуживание", "Maintenance", Icons.Outlined.Build),
+    JOURNAL("Журнал", "Journal", Icons.Outlined.Description),
     SETTINGS("Настройки", "Settings", Icons.Outlined.Settings),
     ABOUT("О программе", "About", Icons.Outlined.Info),
     ;
@@ -86,7 +88,7 @@ fun MainScreen() {
     Row(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         SideMenu(selected = tab, onSelect = { tab = it })
         Column(Modifier.weight(1f).fillMaxHeight().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (shizuku != ShizukuState.READY && tab != Tab.SETTINGS.ordinal && tab != Tab.ABOUT.ordinal && tab != Tab.MAINTENANCE.ordinal) {
+            if (shizuku != ShizukuState.READY && tab != Tab.SETTINGS.ordinal && tab != Tab.ABOUT.ordinal && tab != Tab.MAINTENANCE.ordinal && tab != Tab.JOURNAL.ordinal) {
                 FullModeBanner(shizuku) { tab = Tab.SETTINGS.ordinal }
             }
             Box(Modifier.weight(1f)) {
@@ -95,6 +97,7 @@ fun MainScreen() {
                     Tab.APPS -> AppsScreen()
                     Tab.CLEANUP -> CleanupScreen()
                     Tab.MAINTENANCE -> app.mcleaner.ui.maintenance.MaintenanceScreen()
+                    Tab.JOURNAL -> app.mcleaner.ui.journal.JournalScreen()
                     Tab.SETTINGS -> SettingsScreen()
                     Tab.ABOUT -> AboutScreen()
                 }

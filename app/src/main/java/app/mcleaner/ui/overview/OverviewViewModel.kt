@@ -3,6 +3,7 @@ package app.mcleaner.ui.overview
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import app.mcleaner.core.i18n.tr
+import app.mcleaner.core.log.L
 import kotlinx.coroutines.CancellationException
 import androidx.lifecycle.viewModelScope
 import app.mcleaner.AppContainer
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 data class OverviewUi(
@@ -39,6 +41,23 @@ class OverviewViewModel(private val c: AppContainer) : ViewModel() {
         c.stats.stats().stateIn(viewModelScope, SharingStarted.WhileSubscribed(2_000), null)
 
     val shizuku = c.shizuku.state
+
+    val whitelist: StateFlow<Set<String>> =
+        c.settings.settings.map { it.whitelist }.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
+    fun setWhitelisted(app: AppInfo, on: Boolean) {
+        viewModelScope.launch {
+            c.settings.setWhitelisted(app.packageName, on)
+            L.i("Overview", "whitelist ${if (on) "+" else "-"}${app.packageName}")
+            Toast.makeText(
+                c.appContext,
+                if (on) tr("${app.label}: в белом списке — «Ускорить» его не тронет", "${app.label}: whitelisted — Boost will not touch it")
+                else tr("${app.label}: убрано из белого списка", "${app.label}: removed from the whitelist"),
+                Toast.LENGTH_SHORT,
+            ).show()
+            refresh()
+        }
+    }
 
     private val _ui = MutableStateFlow(OverviewUi())
     val ui: StateFlow<OverviewUi> = _ui.asStateFlow()

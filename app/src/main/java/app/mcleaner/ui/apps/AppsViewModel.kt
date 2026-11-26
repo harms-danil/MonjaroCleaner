@@ -1,7 +1,7 @@
 package app.mcleaner.ui.apps
 
-import app.mcleaner.core.log.L
 import app.mcleaner.core.i18n.tr
+import app.mcleaner.core.log.L
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
@@ -25,6 +25,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 enum class AppSort { MEMORY, CPU, CACHE }
 
+data class CacheStuck(val packageName: String, val label: String, val bytes: Long, val pageOpened: Boolean)
+
 data class AppsUi(
     val loading: Boolean = true,
     val apps: List<AppInfo> = emptyList(),
@@ -33,6 +35,8 @@ data class AppsUi(
     val message: String? = null,
     /** Launchers and the keyboard: never frozen. Null until loaded, and then nothing may be frozen. */
     val freezeProtected: Set<String>? = null,
+    /** «Кэш» did not help: the system kept the internal cache. Shown as an explanation dialog. */
+    val cacheStuck: CacheStuck? = null,
 ) {
     val visible: List<AppInfo>
         get() = apps
@@ -84,6 +88,22 @@ class AppsViewModel(private val c: AppContainer) : ViewModel() {
 
     /** On return to the screen: skip if the list was loaded a moment ago (first show, quick tab switches). */
     fun reloadIfStale() {
+        val waiting = awaitingCache
+        if (waiting != null) {
+            // Back from the system app page: reload now and see whether the cache went down.
+            awaitingCache = null
+            viewModelScope.launch {
+                loadJob?.join()
+                reload()
+                loadJob?.join()
+                val after = _ui.value.apps.firstOrNull { it.packageName == waiting.packageName }?.cacheBytes
+                L.i("Apps", "cache of ${waiting.packageName}: ${waiting.cacheBytes} -> $after")
+                if (app.mcleaner.core.policy.CacheCheck.notCleared(waiting.cacheBytes, after)) {
+                    _ui.value = _ui.value.copy(cacheStuck = CacheStuck(waiting.packageName, waiting.label, after ?: 0, pageOpened = true))
+                }
+            }
+            return
+        }
         if (android.os.SystemClock.elapsedRealtime() - loadedAt > STALE_MS) reload()
     }
 
@@ -116,7 +136,14 @@ class AppsViewModel(private val c: AppContainer) : ViewModel() {
      * Android 8+ refuses one app's internal cache to non-system callers. Then: clear its external cache
      * and hand over to the system app page ([openSystemPage]) where «Очистить кэш» works.
      */
-    fun clearCache(app: AppInfo, openSystemPage: () -> Unit) {
+    /** Set when the system app page was opened for the internal cache: checked when the user comes back. */
+    private var awaitingCache: AppInfo? = null
+
+    fun dismissCacheStuck() {
+        _ui.value = _ui.value.copy(cacheStuck = null)
+    }
+
+    fun clearCache(app: AppInfo, openSystemPage: () -> Boolean) {
         viewModelScope.launch {
             val ok = runCatching { c.cacheCleaner.clearOne(app.packageName, c.apps.currentUser()) }.getOrDefault(false)
             L.i("Apps", "clear cache ${app.packageName}: internal ${if (ok) "cleared" else "refused"}")
@@ -128,7 +155,13 @@ class AppsViewModel(private val c: AppContainer) : ViewModel() {
                     message = (if (ext.bytes > 0) tr("Внешний кэш очищен (${Formatters.bytes(ext.bytes)}). ", "External cache cleared (${Formatters.bytes(ext.bytes)}). ") else "") +
                         tr("Внутренний — в системной карточке: «Хранилище» → «Очистить кэш»", "Internal cache: Storage → Clear cache in the system page"),
                 )
-                openSystemPage()
+                val opened = openSystemPage()
+                L.i("Apps", "system app page for ${app.packageName}: opened $opened, cache before ${app.cacheBytes}")
+                if (opened) {
+                    awaitingCache = app
+                } else {
+                    _ui.value = _ui.value.copy(cacheStuck = CacheStuck(app.packageName, app.label, app.cacheBytes ?: 0, pageOpened = false))
+                }
             }
             reload()
         }

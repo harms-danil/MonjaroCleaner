@@ -55,4 +55,19 @@ class StorageHealthTest {
         assertEquals(h, SpeedHistory.decode(SpeedHistory.encode(h)))
         assertEquals(emptyList<SpeedSample>(), SpeedHistory.decode("junk"))
     }
+
+    @Test
+    fun `read speed is kept and old records without it still load`() {
+        val h = listOf(SpeedSample(timeMs = 5, writeMBps = 11.9, readMBps = 180.5))
+        assertEquals(h, SpeedHistory.decode(SpeedHistory.encode(h)))
+        assertEquals(listOf(SpeedSample(1, 2.0, null)), SpeedHistory.decode("""[{"t":1,"w":2.0}]"""))
+    }
+
+    @Test
+    fun `UFS health descriptor values parse like eMMC ones`() {
+        val probe = "/sys/devices/platform/soc/1d84000.ufshc/health_descriptor/life_time_estimation_a: 0x02\n/sys/devices/platform/soc/1d84000.ufshc/health_descriptor/eol_info: 0x01"
+        assertEquals(EmmcLife(10, 20), EmmcHealth.lifeTimeFromProbe(probe))
+        assertEquals(ReserveState.NORMAL, EmmcHealth.preEolFromProbe(probe))
+        assertEquals(null, EmmcHealth.lifeTimeFromProbe("nothing readable"))
+    }
 }

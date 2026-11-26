@@ -43,6 +43,16 @@ object EmmcHealth {
         return if (v == 0x0B) EmmcLife(100, 100) else EmmcLife((v - 1) * 10, v * 10)
     }
 
+    /**
+     * Output of the multi-path probe (`path: value` per readable file): eMMC `life_time`/`pre_eol_info`
+     * or UFS `health_descriptor/life_time_estimation_a|b`/`eol_info`.
+     */
+    fun lifeTimeFromProbe(out: String): EmmcLife? =
+        lifeTime(out.lineSequence().filter { it.substringBefore(':').let { p -> p.endsWith("life_time") || p.contains("life_time_estimation") } }.joinToString(" ") { it.substringAfter(':') })
+
+    fun preEolFromProbe(out: String): ReserveState? =
+        preEol(out.lineSequence().filter { it.substringBefore(':').endsWith("eol_info") }.joinToString(" ") { it.substringAfter(':') })
+
     /** `pre_eol_info`: how much of the spare block reserve is used up. */
     fun preEol(out: String): ReserveState? = when (hex.find(out)?.groupValues?.get(1)?.toInt(16)) {
         1 -> ReserveState.NORMAL
@@ -52,7 +62,8 @@ object EmmcHealth {
     }
 }
 
-data class SpeedSample(val timeMs: Long, val writeMBps: Double)
+/** [readMBps]: null in records from 1.7.0 (no read test then). */
+data class SpeedSample(val timeMs: Long, val writeMBps: Double, val readMBps: Double? = null)
 
 /** Our own write-speed tests, newest first, so a slowing drive shows up over months. */
 object SpeedHistory {
@@ -61,10 +72,10 @@ object SpeedHistory {
     fun add(list: List<SpeedSample>, s: SpeedSample): List<SpeedSample> = (listOf(s) + list).take(KEEP)
 
     fun encode(list: List<SpeedSample>): String =
-        JSONArray(list.map { JSONObject().put("t", it.timeMs).put("w", it.writeMBps) }).toString()
+        JSONArray(list.map { s -> JSONObject().put("t", s.timeMs).put("w", s.writeMBps).also { o -> s.readMBps?.let { o.put("r", it) } } }).toString()
 
     fun decode(text: String): List<SpeedSample> = runCatching {
         val a = JSONArray(text)
-        (0 until a.length()).map { i -> a.getJSONObject(i).let { SpeedSample(it.getLong("t"), it.getDouble("w")) } }
+        (0 until a.length()).map { i -> a.getJSONObject(i).let { SpeedSample(it.getLong("t"), it.getDouble("w"), if (it.has("r")) it.getDouble("r") else null) } }
     }.getOrDefault(emptyList())
 }

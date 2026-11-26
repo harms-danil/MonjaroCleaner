@@ -65,6 +65,14 @@ class BoostPolicyTest {
     }
 
     @Test
+    fun trimTargets_skip_system_processes_that_are_busy_but_not_the_launcher() {
+        // "android" (system_server) handles HOME on some firmwares; signalling it fails every boost.
+        val apps = listOf(app("android", system = true), app("com.android.settings", system = true), app("com.ecarx.launcher2", system = true))
+        val c = ctx(busy = setOf("android", "com.android.settings")).copy(gentleTrim = true)
+        assertEquals(listOf("com.ecarx.launcher2" to "RUNNING_LOW"), BoostPolicy.trimTargets(apps, c))
+    }
+
+    @Test
     fun userBackgroundApp_isCandidate() {
         assertEquals(listOf("com.example.game"), BoostPolicy.killCandidates(listOf(app("com.example.game")), ctx()))
     }

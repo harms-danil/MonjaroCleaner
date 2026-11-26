@@ -131,6 +131,38 @@ fun AppsScreen() {
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }
 
+    ui.cacheStuck?.let { st ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = vm::dismissCacheStuck,
+            title = { Text(tr("Кэш «${st.label}» не очистился", "«${st.label}» cache was not cleared")) },
+            text = {
+                Text(
+                    (if (st.pageOpened) "" else tr("Системная карточка приложения на этой прошивке не открылась.\n\n", "The system app page did not open on this firmware.\n\n")) +
+                        tr(
+                            "Осталось ${Formatters.bytes(st.bytes)}. Это внутренний кэш: Android 9 разрешает чистить его у одного приложения только самой системе — ни ADB, ни Shizuku этого права не дают. MCleaner очистил то, что можно (внешний кэш).\n\n" +
+                                "Что можно сделать:\n• карточка приложения → «Хранилище» → «Очистить кэш»;\n• «Очистка» → «Очистить кэш всех приложений» — сразу у всех, включая навигатор.",
+                            "${Formatters.bytes(st.bytes)} left. This is the internal cache: Android 9 lets only the system clear it for a single app — neither ADB nor Shizuku have that right. MCleaner cleared what it can (the external cache).\n\n" +
+                                "What you can do:\n• app page → Storage → Clear cache;\n• Cleanup → Clear cache of all apps — all at once, the navigator included.",
+                        ),
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = vm::dismissCacheStuck, modifier = Modifier.heightIn(min = MinTouch)) { Text(tr("Понятно", "OK")) }
+            },
+            dismissButton = {
+                if (st.pageOpened) {
+                    androidx.compose.material3.TextButton(
+                        onClick = {
+                            vm.dismissCacheStuck()
+                            SystemScreens.appDetails(context, st.packageName)
+                        },
+                        modifier = Modifier.heightIn(min = MinTouch),
+                    ) { Text(tr("Открыть карточку", "Open app page")) }
+                }
+            },
+        )
+    }
+
     selected?.let { app ->
         AppActionsSheet(
             app = app,
