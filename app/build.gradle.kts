@@ -21,8 +21,8 @@ android {
         applicationId = "app.mcleaner"
         minSdk = 28
         targetSdk = 35
-        versionCode = 19
-        versionName = "1.8.6"
+        versionCode = 20
+        versionName = "1.8.7"
     }
 
     signingConfigs {

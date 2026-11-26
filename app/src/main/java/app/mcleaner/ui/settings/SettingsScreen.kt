@@ -52,7 +52,7 @@ fun SettingsScreen() {
     val unfrozen by vm.unfrozen.collectAsStateWithLifecycle()
     LaunchedEffect(unfrozen) {
         val (pkg, label) = unfrozen ?: return@LaunchedEffect
-        val r = snackbar.showSnackbar(tr("$label включено", "$label enabled"), actionLabel = tr("Открыть", "Open"), duration = androidx.compose.material3.SnackbarDuration.Long)
+        val r = snackbar.showSnackbar(tr("$label разморожено", "$label unfrozen"), actionLabel = tr("Открыть", "Open"), duration = androidx.compose.material3.SnackbarDuration.Long)
         if (r == androidx.compose.material3.SnackbarResult.ActionPerformed) vm.openApp(pkg, label)
         vm.consumeUnfrozen()
     }

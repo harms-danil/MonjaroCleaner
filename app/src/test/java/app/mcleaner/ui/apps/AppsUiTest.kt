@@ -21,4 +21,29 @@ class AppsUiTest {
     fun `sort by cache with unknown values does not crash, unknown last`() {
         assertEquals(listOf("c", "a", "b", "d"), AppsUi(apps = apps, sort = AppSort.CACHE).visible.map { it.packageName })
     }
+
+    private fun named(label: String, pkg: String) = AppInfo(pkg, label, isSystem = false, isRunning = false, pssKb = null, cacheBytes = null, isFrozen = false)
+
+    private val namedApps = listOf(
+        named("Яндекс Навигатор", "ru.yandex.yandexnavi"),
+        named("DiPlay", "com.shihab.diplay"),
+        named("android system", "android"),
+        named("Яндекс Музыка", "ru.yandex.music"),
+        named("Email", "com.android.email"),
+    )
+
+    @Test
+    fun `sort by name ignores case, Latin before Cyrillic`() {
+        assertEquals(
+            listOf("android system", "DiPlay", "Email", "Яндекс Музыка", "Яндекс Навигатор"),
+            AppsUi(apps = namedApps, sort = AppSort.NAME).visible.map { it.label },
+        )
+    }
+
+    @Test
+    fun `search matches the name or the package, any case`() {
+        assertEquals(listOf("Яндекс Музыка", "Яндекс Навигатор"), AppsUi(apps = namedApps, sort = AppSort.NAME, query = "яндекс").visible.map { it.label })
+        assertEquals(listOf("DiPlay"), AppsUi(apps = namedApps, sort = AppSort.NAME, query = "shihab").visible.map { it.label })
+        assertEquals(5, AppsUi(apps = namedApps, query = "   ").visible.size)
+    }
 }

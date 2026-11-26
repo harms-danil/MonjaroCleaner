@@ -39,6 +39,7 @@ fun AppActionsSheet(
     onOpenSettings: () -> Unit,
     /** Null when the app has no screen to start (services, frozen apps). */
     onOpen: (() -> Unit)?,
+    onUnfreezeAndOpen: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -47,15 +48,19 @@ fun AppActionsSheet(
                 tr("${app.packageName} · ОЗУ ${app.pssKb?.let(Formatters::kb) ?: "—"} · кэш ${app.cacheBytes?.let(Formatters::bytes) ?: "—"}", "${app.packageName} · RAM ${app.pssKb?.let(Formatters::kb) ?: "—"} · cache ${app.cacheBytes?.let(Formatters::bytes) ?: "—"}"),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Wraps onto a second line: the sheet is narrow and a frozen app has more buttons.
+            @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 fun act(block: () -> Unit): () -> Unit = {
                     block()
                     onDismiss()
                 }
+                // Leftmost: «Разморозить» only lifts the freeze, nothing is started; then the ways to open.
+                if (full && app.isFrozen) SheetButton(tr("Разморозить", "Unfreeze"), act(onUnfreeze))
+                if (full && app.isFrozen) SheetButton(tr("Разморозить и открыть", "Unfreeze and open"), act(onUnfreezeAndOpen))
                 onOpen?.let { open -> androidx.compose.material3.Button(onClick = act(open), modifier = Modifier.heightIn(min = MinTouch)) { Text(tr("Открыть", "Open")) } }
                 if (canStop) SheetButton(tr("Закрыть", "Close"), act(if (full) onStop else onOpenSettings))
                 SheetButton(tr("Очистить кэш", "Clear cache"), act(if (full) onClearCache else onOpenSettings))
-                if (full && app.isFrozen) SheetButton(tr("Разморозить", "Unfreeze"), act(onUnfreeze))
                 if (full && canFreeze && !app.isFrozen) SheetButton(tr("Заморозить", "Freeze"), act(onFreeze))
                 androidx.compose.material3.TextButton(onClick = act(onOpenSettings), modifier = Modifier.heightIn(min = MinTouch)) {
                     Text(tr("Системная карточка", "System app page"))

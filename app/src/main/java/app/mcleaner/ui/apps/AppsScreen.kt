@@ -2,6 +2,9 @@ package app.mcleaner.ui.apps
 
 import app.mcleaner.core.i18n.tr
 import androidx.compose.foundation.Image
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +22,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddModerator
 import androidx.compose.material.icons.outlined.Android
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.CircularProgressIndicator
@@ -76,7 +81,7 @@ fun AppsScreen() {
     }
     LaunchedEffect(ui.unfrozen) {
         val app = ui.unfrozen ?: return@LaunchedEffect
-        val r = snackbar.showSnackbar(tr("${app.label} включено", "${app.label} enabled"), actionLabel = tr("Открыть", "Open"), duration = androidx.compose.material3.SnackbarDuration.Long)
+        val r = snackbar.showSnackbar(tr("${app.label} разморожено", "${app.label} unfrozen"), actionLabel = tr("Открыть", "Open"), duration = androidx.compose.material3.SnackbarDuration.Long)
         if (r == androidx.compose.material3.SnackbarResult.ActionPerformed) vm.openApp(app)
         vm.consumeUnfrozen()
     }
@@ -87,11 +92,12 @@ fun AppsScreen() {
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(ui.sort == AppSort.NAME, { vm.setSort(AppSort.NAME) }, { Text(tr("По имени", "By name")) }, Modifier.heightIn(min = 48.dp))
                 FilterChip(ui.sort == AppSort.MEMORY, { vm.setSort(AppSort.MEMORY) }, { Text(tr("По памяти", "By memory")) }, Modifier.heightIn(min = 48.dp))
                 FilterChip(ui.sort == AppSort.CPU, { vm.setSort(AppSort.CPU) }, { Text(tr("По процессору", "By CPU")) }, Modifier.heightIn(min = 48.dp), enabled = full)
                 FilterChip(ui.sort == AppSort.CACHE, { vm.setSort(AppSort.CACHE) }, { Text(tr("По кэшу", "By cache")) }, Modifier.heightIn(min = 48.dp))
                 FilterChip(ui.onlyRunning, { vm.setOnlyRunning(!ui.onlyRunning) }, { Text(tr("Только работающие", "Running only")) }, Modifier.heightIn(min = 48.dp), enabled = full)
-                Spacer(Modifier.weight(1f))
+                SearchField(ui.query, vm::setQuery, Modifier.weight(1f))
                 IconButton(onClick = vm::reload, enabled = !ui.loading, modifier = Modifier.size(MinTouch)) {
                     if (ui.loading) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 3.dp)
                     else Icon(Icons.Outlined.Refresh, contentDescription = tr("Обновить", "Refresh"))
@@ -112,10 +118,16 @@ fun AppsScreen() {
             }
             if (ui.loading && ui.apps.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            } else if (ui.visible.isEmpty() && ui.query.isNotBlank()) {
+                Text(
+                    tr("Ничего не найдено по «${ui.query.trim()}»", "Nothing found for «${ui.query.trim()}»"),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(16.dp),
+                )
             } else {
                 val listState = androidx.compose.foundation.lazy.rememberLazyListState()
                 // Keyed rows keep the first visible app in place; after a re-sort the leaders must be in view.
-                LaunchedEffect(ui.sort, ui.onlyRunning) { listState.scrollToItem(0) }
+                LaunchedEffect(ui.sort, ui.onlyRunning, ui.query) { listState.scrollToItem(0) }
                 LazyColumn(Modifier.fillMaxSize(), state = listState) {
                     items(ui.visible, key = { it.packageName }) { app ->
                         AppRow(
@@ -184,7 +196,7 @@ fun AppsScreen() {
             onStop = { vm.stop(app) },
             onClearCache = { vm.clearCache(app) { SystemScreens.appDetails(context, app.packageName) } },
             onFreeze = { vm.freeze(app) },
-            onUnfreeze = { vm.unfreeze(app) },
+            onUnfreeze = { vm.unfreeze(app, open = false) },
             onWhitelist = { vm.setWhitelisted(app, it) },
             onOpenSettings = { SystemScreens.appDetails(context, app.packageName) },
             onOpen = if (!app.isFrozen && context.packageManager.getLaunchIntentForPackage(app.packageName) != null) {
@@ -192,6 +204,7 @@ fun AppsScreen() {
             } else {
                 null
             },
+            onUnfreezeAndOpen = { vm.unfreeze(app, open = true) },
         )
     }
 }
@@ -250,3 +263,40 @@ private fun AppRow(
 }
 
 private val ACTION_WIDTH = 120.dp
+
+/** Search box with the same height, corners and outline as the filter chips next to it. */
+@Composable
+private fun SearchField(value: String, onChange: (String) -> Unit, modifier: Modifier) {
+    var focused by remember { mutableStateOf(false) }
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+    androidx.compose.foundation.text.BasicTextField(
+        value = value,
+        onValueChange = onChange,
+        singleLine = true,
+        textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+        cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
+        modifier = modifier.height(48.dp).onFocusChanged { focused = it.isFocused },
+        decorationBox = { inner ->
+            Row(
+                Modifier.fillMaxSize()
+                    .border(if (focused) 2.dp else 1.dp, if (focused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, shape)
+                    .padding(start = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Outlined.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(10.dp))
+                Box(Modifier.weight(1f)) {
+                    if (value.isEmpty()) Text(tr("Поиск по имени", "Search by name"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    inner()
+                }
+                if (value.isNotEmpty()) {
+                    IconButton(onClick = { onChange("") }, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.Outlined.Close, contentDescription = tr("Очистить", "Clear"))
+                    }
+                } else {
+                    Spacer(Modifier.width(12.dp))
+                }
+            }
+        },
+    )
+}

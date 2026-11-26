@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
-enum class AppSort { MEMORY, CPU, CACHE }
+enum class AppSort { NAME, MEMORY, CPU, CACHE }
 
 data class CacheStuck(val packageName: String, val label: String, val bytes: Long, val pageOpened: Boolean)
 
@@ -33,6 +33,8 @@ data class AppsUi(
     val apps: List<AppInfo> = emptyList(),
     val sort: AppSort = AppSort.MEMORY,
     val onlyRunning: Boolean = false,
+    /** Search by app name or package; blank = everything. */
+    val query: String = "",
     val message: String? = null,
     /** Launchers and the keyboard: never frozen. Null until loaded, and then nothing may be frozen. */
     val freezeProtected: Set<String>? = null,
@@ -44,8 +46,10 @@ data class AppsUi(
     val visible: List<AppInfo>
         get() = apps
             .filter { !onlyRunning || it.isRunning }
+            .filter { a -> query.isBlank() || query.trim().let { q -> a.label.contains(q, ignoreCase = true) || a.packageName.contains(q, ignoreCase = true) } }
             .sortedWith(
                 when (sort) {
+                    AppSort.NAME -> compareBy<AppInfo> { it.label.lowercase() }.thenBy { it.packageName }
                     AppSort.MEMORY -> compareByDescending<AppInfo> { it.pssKb ?: -1L }.thenByDescending { it.cacheBytes ?: -1L }
                     AppSort.CPU -> compareByDescending<AppInfo> { it.cpuPercent ?: -1.0 }.thenByDescending { it.pssKb ?: -1L }
                     AppSort.CACHE -> compareByDescending<AppInfo> { it.cacheBytes ?: -1L }.thenByDescending { it.pssKb ?: -1L }
@@ -114,6 +118,10 @@ class AppsViewModel(private val c: AppContainer) : ViewModel() {
         _ui.value = _ui.value.copy(sort = sort)
     }
 
+    fun setQuery(q: String) {
+        _ui.value = _ui.value.copy(query = q)
+    }
+
     fun setOnlyRunning(on: Boolean) {
         _ui.value = _ui.value.copy(onlyRunning = on)
     }
@@ -178,12 +186,13 @@ class AppsViewModel(private val c: AppContainer) : ViewModel() {
         c.freezeManager.freeze(app, selfPackage, c.settings.current().whitelist, c.apps.freezeProtectedPackages())
     }
 
-    fun unfreeze(app: AppInfo) {
+    /** «Разморозить» lifts the freeze only; [open] («Разморозить и открыть») also starts the app. */
+    fun unfreeze(app: AppInfo, open: Boolean) {
         viewModelScope.launch {
             val ok = runCatching { c.freezeManager.unfreeze(app.packageName) }.getOrDefault(false)
-            L.i("Apps", "unfreeze ${app.packageName}: $ok")
+            L.i("Apps", "unfreeze ${app.packageName}: $ok, open $open")
             if (ok) {
-                _ui.value = _ui.value.copy(unfrozen = app)
+                if (open) openApp(app) else _ui.value = _ui.value.copy(unfrozen = app)
                 reload()
             } else {
                 _ui.value = _ui.value.copy(message = tr("${app.label}: не удалось разморозить", "${app.label}: could not unfreeze"))
