@@ -49,6 +49,13 @@ fun SettingsScreen() {
     val full = shizuku == ShizukuState.READY
 
     LaunchedEffect(Unit) { vm.refreshShizuku() }
+    val unfrozen by vm.unfrozen.collectAsStateWithLifecycle()
+    LaunchedEffect(unfrozen) {
+        val (pkg, label) = unfrozen ?: return@LaunchedEffect
+        val r = snackbar.showSnackbar(tr("$label включено", "$label enabled"), actionLabel = tr("Открыть", "Open"), duration = androidx.compose.material3.SnackbarDuration.Long)
+        if (r == androidx.compose.material3.SnackbarResult.ActionPerformed) vm.openApp(pkg, label)
+        vm.consumeUnfrozen()
+    }
     LaunchedEffect(message) {
         message?.let {
             snackbar.showSnackbar(it)
@@ -150,8 +157,11 @@ fun SettingsScreen() {
                             Text(label)
                             if (label != pkg) Text(pkg, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        androidx.compose.material3.TextButton(onClick = { vm.unfreeze(pkg) }, enabled = full, modifier = Modifier.heightIn(min = MinTouch)) {
+                        androidx.compose.material3.TextButton(onClick = { vm.unfreeze(pkg, label, open = false) }, enabled = full, modifier = Modifier.heightIn(min = MinTouch)) {
                             Text(tr("Разморозить", "Unfreeze"))
+                        }
+                        OutlinedButton(onClick = { vm.unfreeze(pkg, label, open = true) }, enabled = full, modifier = Modifier.heightIn(min = MinTouch)) {
+                            Text(tr("Разморозить и открыть", "Unfreeze and open"))
                         }
                     }
                 }

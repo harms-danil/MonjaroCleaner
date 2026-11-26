@@ -74,6 +74,12 @@ fun AppsScreen() {
             vm.consumeMessage()
         }
     }
+    LaunchedEffect(ui.unfrozen) {
+        val app = ui.unfrozen ?: return@LaunchedEffect
+        val r = snackbar.showSnackbar(tr("${app.label} включено", "${app.label} enabled"), actionLabel = tr("Открыть", "Open"), duration = androidx.compose.material3.SnackbarDuration.Long)
+        if (r == androidx.compose.material3.SnackbarResult.ActionPerformed) vm.openApp(app)
+        vm.consumeUnfrozen()
+    }
     LaunchedEffect(full) { vm.reload() }
     // Back from the system app page (where the internal cache is cleared): show fresh numbers.
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { vm.reloadIfStale() }

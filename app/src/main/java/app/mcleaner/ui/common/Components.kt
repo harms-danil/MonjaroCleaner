@@ -165,9 +165,9 @@ object SystemScreens {
         val specific = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:${ctx.packageName}"))
         if (!start(ctx, specific)) start(ctx, Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
     }
-    fun openApp(ctx: Context, pkg: String) {
-        ctx.packageManager.getLaunchIntentForPackage(pkg)?.let { start(ctx, it) }
-    }
+    /** False when the app has no screen to open (no launcher activity) or the start failed. */
+    fun openApp(ctx: Context, pkg: String): Boolean =
+        ctx.packageManager.getLaunchIntentForPackage(pkg)?.let { start(ctx, it) } ?: false
 
     private fun start(ctx: Context, intent: Intent): Boolean = runCatching {
         ctx.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

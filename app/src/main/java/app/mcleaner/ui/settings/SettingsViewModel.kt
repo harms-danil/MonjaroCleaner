@@ -44,11 +44,31 @@ class SettingsViewModel(private val c: AppContainer) : ViewModel() {
             s.frozen.sorted().map { pkg -> pkg to (apps.firstOrNull { it.packageName == pkg }?.label ?: pkg) }
         }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    fun unfreeze(pkg: String) {
+    /** Just unfrozen (package, name): the screen offers «Открыть» for it. */
+    private val _unfrozen = MutableStateFlow<Pair<String, String>?>(null)
+    val unfrozen: StateFlow<Pair<String, String>?> = _unfrozen.asStateFlow()
+
+    /** [open]: «Разморозить и открыть» — start the app right after enabling it. */
+    fun unfreeze(pkg: String, label: String, open: Boolean) {
         viewModelScope.launch {
             val ok = c.freezeManager.unfreeze(pkg)
-            _message.value = if (ok) tr("Разморожено", "Unfrozen") else tr("Не удалось разморозить", "Could not unfreeze")
+            app.mcleaner.core.log.L.i("Freeze", "unfreeze $pkg: $ok, open $open")
+            when {
+                !ok -> _message.value = tr("$label: не удалось разморозить", "$label: could not unfreeze")
+                open -> openApp(pkg, label)
+                else -> _unfrozen.value = pkg to label
+            }
         }
+    }
+
+    fun openApp(pkg: String, label: String) {
+        if (!app.mcleaner.ui.common.SystemScreens.openApp(c.appContext, pkg)) {
+            _message.value = tr("$label включено, но у него нет экрана для открытия", "$label is enabled but has no screen to open")
+        }
+    }
+
+    fun consumeUnfrozen() {
+        _unfrozen.value = null
     }
 
     init {

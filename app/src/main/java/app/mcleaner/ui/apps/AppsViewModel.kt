@@ -12,6 +12,7 @@ import app.mcleaner.core.model.AppInfo
 import app.mcleaner.core.policy.BoostPolicy
 import app.mcleaner.privileged.shellQuote
 import app.mcleaner.ui.common.Formatters
+import app.mcleaner.ui.common.SystemScreens
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -37,6 +38,8 @@ data class AppsUi(
     val freezeProtected: Set<String>? = null,
     /** «Кэш» did not help: the system kept the internal cache. Shown as an explanation dialog. */
     val cacheStuck: CacheStuck? = null,
+    /** Just unfrozen: the screen offers «Открыть». */
+    val unfrozen: AppInfo? = null,
 ) {
     val visible: List<AppInfo>
         get() = apps
@@ -172,8 +175,27 @@ class AppsViewModel(private val c: AppContainer) : ViewModel() {
         c.freezeManager.freeze(app, selfPackage, c.settings.current().whitelist, c.apps.freezeProtectedPackages())
     }
 
-    fun unfreeze(app: AppInfo) = act(tr("${app.label}: разморожено", "${app.label}: unfrozen"), tr("${app.label}: не удалось разморозить", "${app.label}: could not unfreeze")) {
-        c.freezeManager.unfreeze(app.packageName)
+    fun unfreeze(app: AppInfo) {
+        viewModelScope.launch {
+            val ok = runCatching { c.freezeManager.unfreeze(app.packageName) }.getOrDefault(false)
+            L.i("Apps", "unfreeze ${app.packageName}: $ok")
+            if (ok) {
+                _ui.value = _ui.value.copy(unfrozen = app)
+                reload()
+            } else {
+                _ui.value = _ui.value.copy(message = tr("${app.label}: не удалось разморозить", "${app.label}: could not unfreeze"))
+            }
+        }
+    }
+
+    fun openApp(app: AppInfo) {
+        if (!SystemScreens.openApp(c.appContext, app.packageName)) {
+            _ui.value = _ui.value.copy(message = tr("${app.label} включено, но у него нет экрана для открытия", "${app.label} is enabled but has no screen to open"))
+        }
+    }
+
+    fun consumeUnfrozen() {
+        _ui.value = _ui.value.copy(unfrozen = null)
     }
 
     fun setWhitelisted(app: AppInfo, on: Boolean) {
