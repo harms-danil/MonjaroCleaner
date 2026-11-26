@@ -173,7 +173,7 @@ private fun ShareDialog(server: LogShareServer, onClose: () -> Unit) {
             delay(1_000)
         }
     }
-    val url = session?.urls?.firstOrNull()
+    val url = session?.url
     val qr = remember(url) { url?.let { qrBitmap(it) } }
     AlertDialog(
         onDismissRequest = onClose,
@@ -198,7 +198,25 @@ private fun ShareDialog(server: LogShareServer, onClose: () -> Unit) {
                                     "1. The phone is on the same network as the head unit (or the head unit is on the phone's hotspot).\n2. Scan the QR code and open the link.\n3. Tap «Download journal».",
                                 ),
                             )
-                            session?.urls?.forEach { Text(it, fontFamily = FontFamily.Monospace, fontSize = 13.sp) }
+                            session?.let { s ->
+                                if (s.fallback) {
+                                    Text(
+                                        tr("Магнитола не в Wi-Fi: адрес ниже может быть недоступен с телефона. Надёжнее подключить магнитолу к точке доступа телефона.", "The head unit is not on Wi-Fi: the address below may be unreachable from a phone. Connecting the head unit to the phone's hotspot is more reliable."),
+                                        color = app.mcleaner.ui.theme.Palette.Warn,
+                                    )
+                                }
+                                s.links.forEach { (kind, link) ->
+                                    Text(
+                                        when (kind) {
+                                            app.mcleaner.core.log.NetKind.WIFI -> tr("Wi-Fi", "Wi-Fi")
+                                            app.mcleaner.core.log.NetKind.HOTSPOT -> tr("Точка доступа магнитолы", "Head unit hotspot")
+                                            app.mcleaner.core.log.NetKind.OTHER -> tr("Другая сеть", "Other network")
+                                        },
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(link, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+                                }
+                            }
                             Text(
                                 tr("Ссылка работает ещё ${left / 60_000}:${"%02d".format(left / 1000 % 60)} и пока открыто это окно.", "The link works for ${left / 60_000}:${"%02d".format(left / 1000 % 60)} more and while this window is open."),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,

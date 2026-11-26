@@ -24,8 +24,24 @@ class ShareRouteTest {
     }
 
     @Test
-    fun `phone-reachable addresses come first`() {
-        val ifs = listOf("lo" to "127.0.0.1", "rmnet0" to "10.1.2.3", "wlan0" to "192.168.43.12", "ap0" to "192.168.44.1")
-        assertEquals(listOf("192.168.43.12", "192.168.44.1", "10.1.2.3"), ShareRoute.orderAddresses(ifs))
+    fun `only the Wi-Fi address is shown when there is one`() {
+        val ifs = listOf("lo" to "127.0.0.1", "radio0" to "192.168.200.2", "wlan0" to "192.168.232.2")
+        assertEquals(ShareAddresses(listOf(ShareAddress(NetKind.WIFI, "192.168.232.2")), fallback = false), ShareRoute.pickAddresses(ifs))
+    }
+
+    @Test
+    fun `hotspot is labelled as such and comes after Wi-Fi`() {
+        val ifs = listOf("ap0" to "192.168.44.1", "wlan0" to "192.168.43.12", "rmnet0" to "10.1.2.3")
+        assertEquals(
+            ShareAddresses(listOf(ShareAddress(NetKind.WIFI, "192.168.43.12"), ShareAddress(NetKind.HOTSPOT, "192.168.44.1")), fallback = false),
+            ShareRoute.pickAddresses(ifs),
+        )
+    }
+
+    @Test
+    fun `without Wi-Fi other addresses are offered as a fallback`() {
+        val ifs = listOf("lo" to "127.0.0.1", "eth0" to "172.16.0.5")
+        assertEquals(ShareAddresses(listOf(ShareAddress(NetKind.OTHER, "172.16.0.5")), fallback = true), ShareRoute.pickAddresses(ifs))
+        assertEquals(ShareAddresses(emptyList(), fallback = true), ShareRoute.pickAddresses(listOf("lo" to "127.0.0.1")))
     }
 }

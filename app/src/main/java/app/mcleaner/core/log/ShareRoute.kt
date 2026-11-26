@@ -19,11 +19,30 @@ enum class ShareRoute {
             }
         }
 
-        /** (interface name, IPv4) → addresses a phone can reach: Wi-Fi and hotspot first, loopback dropped. */
-        fun orderAddresses(interfaces: List<Pair<String, String>>): List<String> =
-            interfaces.filter { (_, ip) -> !ip.startsWith("127.") }
-                .sortedBy { (name, _) -> if (name.startsWith("wlan") || name.startsWith("ap") || name.startsWith("swlan") || name.startsWith("softap")) 0 else 1 }
-                .map { it.second }
-                .distinct()
+        /**
+         * (interface name, IPv4) → what to show the phone. Only Wi-Fi and the head unit's own hotspot are
+         * reachable from a phone; modem, mobile-data and other internal links are shown only when there is
+         * no Wi-Fi at all, as a fallback.
+         */
+        fun pickAddresses(interfaces: List<Pair<String, String>>): ShareAddresses {
+            val usable = interfaces.filter { (_, ip) -> !ip.startsWith("127.") }.distinctBy { it.second }
+            val wifi = usable.mapNotNull { (name, ip) -> kindOf(name)?.let { ShareAddress(it, ip) } }
+                .sortedBy { it.kind.ordinal }
+            if (wifi.isNotEmpty()) return ShareAddresses(wifi, fallback = false)
+            return ShareAddresses(usable.map { ShareAddress(NetKind.OTHER, it.second) }, fallback = true)
+        }
+
+        private fun kindOf(name: String): NetKind? = when {
+            name.startsWith("ap") || name.startsWith("swlan") || name.startsWith("softap") -> NetKind.HOTSPOT
+            name.startsWith("wlan") -> NetKind.WIFI
+            else -> null
+        }
     }
 }
+
+enum class NetKind { WIFI, HOTSPOT, OTHER }
+
+data class ShareAddress(val kind: NetKind, val ip: String)
+
+/** [fallback]: no Wi-Fi; these addresses may not be reachable from a phone. */
+data class ShareAddresses(val addresses: List<ShareAddress>, val fallback: Boolean)

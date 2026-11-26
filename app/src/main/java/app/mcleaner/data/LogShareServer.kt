@@ -21,7 +21,10 @@ import java.util.concurrent.Executors
  * after [LIFETIME_MS]. Plain HTTP inside the car's own Wi-Fi; the token keeps strangers out.
  */
 class LogShareServer(private val exporter: LogExporter, private val cacheDir: File) {
-    data class Session(val urls: List<String>, val stopsAtMs: Long)
+    /** [links]: what to show, the first one goes into the QR code. */
+    data class Session(val links: List<Pair<app.mcleaner.core.log.NetKind, String>>, val fallback: Boolean, val stopsAtMs: Long) {
+        val url: String? get() = links.firstOrNull()?.second
+    }
 
     private var socket: ServerSocket? = null
     private val pool = Executors.newFixedThreadPool(2)
@@ -41,9 +44,9 @@ class LogShareServer(private val exporter: LogExporter, private val cacheDir: Fi
                 pool.execute { handle(client, token) }
             }
         }, "mcleaner-share").apply { isDaemon = true }.start()
-        val urls = ShareRoute.orderAddresses(addresses()).map { "http://$it:$port/$token/" }
-        L.i("Share", "journal server started on port $port, addresses ${urls.size}")
-        return Session(urls, stopsAt)
+        val picked = ShareRoute.pickAddresses(addresses())
+        L.i("Share", "journal server started on port $port: $picked")
+        return Session(picked.addresses.map { it.kind to "http://${it.ip}:$port/$token/" }, picked.fallback, stopsAt)
     }
 
     @Synchronized
