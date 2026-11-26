@@ -187,6 +187,11 @@ fun AppsScreen() {
             onUnfreeze = { vm.unfreeze(app) },
             onWhitelist = { vm.setWhitelisted(app, it) },
             onOpenSettings = { SystemScreens.appDetails(context, app.packageName) },
+            onOpen = if (!app.isFrozen && context.packageManager.getLaunchIntentForPackage(app.packageName) != null) {
+                { vm.openApp(app) }
+            } else {
+                null
+            },
         )
     }
 }

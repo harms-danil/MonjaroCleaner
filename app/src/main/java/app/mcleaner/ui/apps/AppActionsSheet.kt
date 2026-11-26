@@ -37,6 +37,8 @@ fun AppActionsSheet(
     onUnfreeze: () -> Unit,
     onWhitelist: (Boolean) -> Unit,
     onOpenSettings: () -> Unit,
+    /** Null when the app has no screen to start (services, frozen apps). */
+    onOpen: (() -> Unit)?,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -50,11 +52,14 @@ fun AppActionsSheet(
                     block()
                     onDismiss()
                 }
+                onOpen?.let { open -> androidx.compose.material3.Button(onClick = act(open), modifier = Modifier.heightIn(min = MinTouch)) { Text(tr("Открыть", "Open")) } }
                 if (canStop) SheetButton(tr("Закрыть", "Close"), act(if (full) onStop else onOpenSettings))
                 SheetButton(tr("Очистить кэш", "Clear cache"), act(if (full) onClearCache else onOpenSettings))
                 if (full && app.isFrozen) SheetButton(tr("Разморозить", "Unfreeze"), act(onUnfreeze))
                 if (full && canFreeze && !app.isFrozen) SheetButton(tr("Заморозить", "Freeze"), act(onFreeze))
-                SheetButton(tr("Открыть в настройках", "Open in system settings"), act(onOpenSettings))
+                androidx.compose.material3.TextButton(onClick = act(onOpenSettings), modifier = Modifier.heightIn(min = MinTouch)) {
+                    Text(tr("Системная карточка", "System app page"))
+                }
             }
             Row(Modifier.fillMaxWidth().heightIn(min = MinTouch), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
